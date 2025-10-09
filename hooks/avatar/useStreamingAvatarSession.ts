@@ -2,6 +2,7 @@ import StreamingAvatar, {
   ConnectionQuality,
   StartAvatarRequest,
   StreamingEvents,
+  TaskType,
 } from "@heygen/streaming-avatar";
 import { useCallback } from "react";
 
@@ -50,8 +51,27 @@ export const useStreamingAvatarSession = () => {
     [setSessionState, setStream],
   );
 
+  // Enhanced handler for STREAM_READY with initial greeting
+  const handleStreamReady = useCallback(
+    async (event: any) => {
+      handleStream(event);
+
+      // Send initial greeting immediately when stream is ready
+      try {
+        await avatarRef.current?.speak({
+          text: "¡Hola! Soy Clara, tu asesora virtual de skincare de Beta Skin Tech. ¿En qué puedo ayudarte hoy?",
+          taskType: TaskType.REPEAT, // REPEAT = only TTS, no LLM processing
+        });
+        console.log("✅ Initial greeting sent to avatar");
+      } catch (error) {
+        console.error("Failed to send initial greeting:", error);
+      }
+    },
+    [handleStream, avatarRef],
+  );
+
   const stop = useCallback(async () => {
-    avatarRef.current?.off(StreamingEvents.STREAM_READY, handleStream);
+    avatarRef.current?.off(StreamingEvents.STREAM_READY, handleStreamReady);
     avatarRef.current?.off(StreamingEvents.STREAM_DISCONNECTED, stop);
     clearMessages();
     stopVoiceChat();
@@ -62,7 +82,7 @@ export const useStreamingAvatarSession = () => {
     await avatarRef.current?.stopAvatar();
     setSessionState(StreamingAvatarSessionState.INACTIVE);
   }, [
-    handleStream,
+    handleStreamReady,
     setSessionState,
     setStream,
     avatarRef,
@@ -91,7 +111,9 @@ export const useStreamingAvatarSession = () => {
       }
 
       setSessionState(StreamingAvatarSessionState.CONNECTING);
-      avatarRef.current.on(StreamingEvents.STREAM_READY, handleStream);
+
+      // Enhanced STREAM_READY handler with initial greeting
+      avatarRef.current.on(StreamingEvents.STREAM_READY, handleStreamReady);
       avatarRef.current.on(StreamingEvents.STREAM_DISCONNECTED, stop);
       avatarRef.current.on(
         StreamingEvents.CONNECTION_QUALITY_CHANGED,
@@ -130,7 +152,7 @@ export const useStreamingAvatarSession = () => {
     },
     [
       init,
-      handleStream,
+      handleStreamReady,
       stop,
       setSessionState,
       avatarRef,

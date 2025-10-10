@@ -12,17 +12,19 @@ import {
 } from "@/hooks/avatar"
 import { AvatarVideo } from "@/components/avatar/AvatarVideo"
 import { VoiceInterface } from "@/components/avatar/VoiceInterface"
-import { AvatarQuality, VoiceEmotion, STTProvider, VoiceChatTransport, StartAvatarRequest } from "@heygen/streaming-avatar"
+import { AvatarQuality, VoiceEmotion, STTProvider, VoiceChatTransport, StartAvatarRequest, StreamingEvents } from "@heygen/streaming-avatar"
 import { useMemoizedFn, useUnmount } from "ahooks"
 
-const DEFAULT_CONFIG: StartAvatarRequest = {
-  quality: AvatarQuality.High,
-  avatarName: "Alessandra_CasualLook_public",
-  knowledgeId: "251ae2b8b812448d9d03efbc354c9b98",
+// Avatar configuration by screen size
+// Uses environment variables from Vercel, with local fallbacks
+const getResponsiveAvatarConfig = (isDesktop: boolean): StartAvatarRequest => ({
+  quality: AvatarQuality.Low, // Low quality for better performance
+  avatarName: process.env.NEXT_PUBLIC_HEYGEN_AVATAR_ID || "Alessandra_CasualLook_public",
+  knowledgeId: process.env.NEXT_PUBLIC_HEYGEN_KNOWLEDGE_ID || "588f6e52f25e4f228666c0c3d799860f",
   voice: {
-    voiceId: "1e080de3d73e4225a7454797a848bffe",
+    voiceId: process.env.NEXT_PUBLIC_HEYGEN_VOICE_ID || "1e080de3d73e4225a7454797a848bffe",
     rate: 1,
-    emotion: VoiceEmotion.FRIENDLY,
+    emotion: VoiceEmotion.SERIOUS,
   },
   language: "es",
   voiceChatTransport: VoiceChatTransport.WEBSOCKET,
@@ -30,12 +32,30 @@ const DEFAULT_CONFIG: StartAvatarRequest = {
     provider: STTProvider.DEEPGRAM,
     confidence: 0.55,
   },
+});
+
+// Hook to detect screen size
+const useScreenSize = () => {
+  const [isDesktop, setIsDesktop] = useState(false);
+
+  useEffect(() => {
+    const checkScreenSize = () => {
+      setIsDesktop(window.innerWidth >= 1024); // lg breakpoint
+    };
+
+    checkScreenSize();
+    window.addEventListener('resize', checkScreenSize);
+    return () => window.removeEventListener('resize', checkScreenSize);
+  }, []);
+
+  return { isDesktop };
 };
 
 function ClaraWidgetMobile() {
   const { initAvatar, startAvatar, stopAvatar, sessionState, stream } = useStreamingAvatarSession();
   const { startVoiceChat } = useVoiceChat();
   const { isVoiceChatActive, isUserTalking, isAvatarTalking, isMuted } = useStreamingAvatarContext();
+  const { isDesktop } = useScreenSize();
 
   const [isVoiceMode, setIsVoiceMode] = useState(false);
   const mediaStream = useRef<HTMLVideoElement>(null);
@@ -61,13 +81,39 @@ function ClaraWidgetMobile() {
   const startSession = useMemoizedFn(async (isVoiceChat: boolean) => {
     try {
       setIsVoiceMode(isVoiceChat);
+
+      // FIX #2: Request microphone permissions BEFORE starting avatar session
+      // This prevents the issue where accepting permissions during session causes audio failure
+      if (isVoiceChat) {
+        try {
+          // Check current permission state
+          const permissionStatus = await navigator.permissions.query({ name: 'microphone' as PermissionName });
+
+          if (permissionStatus.state === 'prompt') {
+            // Permission not yet granted, request it now
+            const tempStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            // Immediately release the stream after getting permission
+            tempStream.getTracks().forEach(track => track.stop());
+            console.log("Microphone permission granted before session start");
+          }
+        } catch (permError) {
+          console.error("Microphone permission denied:", permError);
+          // User denied permission, cannot proceed with voice chat
+          alert("Necesitas conceder permiso al micrófono para usar la llamada de voz");
+          return;
+        }
+      }
+
       const newToken = await fetchAccessToken();
       initAvatar(newToken);
 
-      await startAvatar(DEFAULT_CONFIG);
+      // Use responsive avatar configuration
+      const avatarConfig = getResponsiveAvatarConfig(isDesktop);
+      await startAvatar(avatarConfig);
 
       if (isVoiceChat) {
-        await startVoiceChat();
+        // Start voice chat WITH MUTED MIC to allow greeting to play first
+        await startVoiceChat(true); // true = muted initially (like HeyGen embed)
       }
     } catch (error) {
       console.error("Error starting avatar session:", error);
@@ -122,22 +168,13 @@ function ClaraWidgetMobile() {
             </p>
           </div>
 
-          {/* Main CTA Button */}
+          {/* Main CTA Button - Always with voice */}
           <button
             onClick={() => startSession(true)}
             className="w-full h-14 bg-blue-500/80 hover:bg-blue-500 backdrop-blur-md text-white font-semibold rounded-2xl transition-all duration-300 active:scale-95 flex items-center justify-center gap-3 border border-blue-400/30 shadow-lg"
           >
             <Phone className="w-6 h-6" />
             Iniciar Llamada con Clara
-          </button>
-
-          {/* Secondary option */}
-          <button
-            onClick={() => startSession(false)}
-            className="w-full h-14 bg-white/20 hover:bg-white/30 backdrop-blur-md text-slate-700 font-medium rounded-2xl transition-all duration-300 active:scale-95 flex items-center justify-center gap-3 border border-white/30 shadow-sm"
-          >
-            <Video className="w-6 h-6" />
-            Iniciar Chat de Video
           </button>
         </div>
       </div>
@@ -186,8 +223,8 @@ function ClaraWidgetMobile() {
       {/* Clara Video Container - Maximum Height */}
       <div className="flex-1 relative overflow-hidden">
         <div className="absolute inset-0 p-4">
-          {/* Video Frame - Full available space */}
-          <div className="w-full h-full bg-white/90 backdrop-blur-md rounded-3xl overflow-hidden shadow-xl border border-slate-200/40 relative">
+          {/* Video Frame - Responsive sizing */}
+          <div className="w-full h-full max-w-sm mx-auto md:max-w-md lg:max-w-lg xl:max-w-xl bg-white/90 backdrop-blur-md rounded-3xl overflow-hidden shadow-xl border border-slate-200/40 relative">
             <div className="w-full h-full relative">
               {stream ? (
                 <AvatarVideo

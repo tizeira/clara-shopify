@@ -14,6 +14,7 @@ import { AvatarVideo } from "@/components/avatar/AvatarVideo"
 import { VoiceInterface } from "@/components/avatar/VoiceInterface"
 import { AvatarQuality, VoiceEmotion, STTProvider, VoiceChatTransport, StartAvatarRequest, StreamingEvents } from "@heygen/streaming-avatar"
 import { useMemoizedFn, useUnmount } from "ahooks"
+import { ClaraCustomerData } from "@/lib/shopify-client"
 
 // Avatar configuration by screen size
 // Uses environment variables from Vercel, with local fallbacks
@@ -284,9 +285,20 @@ function ClaraWidgetMobile() {
   );
 }
 
-export default function HelpAssistantWidgetMobile() {
+interface HelpAssistantWidgetProps {
+  customerData?: ClaraCustomerData | null;
+  customerDataLoading?: boolean;
+}
+
+export default function HelpAssistantWidgetMobile({
+  customerData,
+  customerDataLoading
+}: HelpAssistantWidgetProps) {
   return (
-    <StreamingAvatarProvider basePath={process.env.NEXT_PUBLIC_BASE_API_URL}>
+    <StreamingAvatarProvider
+      basePath={process.env.NEXT_PUBLIC_BASE_API_URL}
+      customerData={customerData}
+    >
       <ClaraWidgetMobile />
     </StreamingAvatarProvider>
   );

@@ -11,6 +11,7 @@ import {
   useStreamingAvatarContext,
 } from "./context";
 import { useVoiceChat } from "./useVoiceChat";
+import { generateKnowledgeBaseContext } from "@/lib/shopify-client";
 
 export const useStreamingAvatarSession = () => {
   const {
@@ -28,6 +29,7 @@ export const useStreamingAvatarSession = () => {
     handleStreamingTalkingMessage,
     handleEndMessage,
     clearMessages,
+    customerData,
   } = useStreamingAvatarContext();
   const { stopVoiceChat } = useVoiceChat();
 
@@ -146,7 +148,17 @@ export const useStreamingAvatarSession = () => {
         handleEndMessage,
       );
 
-      await avatarRef.current.createStartAvatar(config);
+      // Personalize knowledgeBase if customer data exists
+      const finalConfig = { ...config };
+      if (customerData) {
+        const customContext = generateKnowledgeBaseContext(customerData);
+        finalConfig.knowledgeBase = customContext;
+        console.log('✅ Using personalized knowledge base for:', customerData.firstName, customerData.lastName);
+      } else {
+        console.log('ℹ️  No customer data - using default knowledge base');
+      }
+
+      await avatarRef.current.createStartAvatar(finalConfig);
 
       return avatarRef.current;
     },
@@ -163,6 +175,7 @@ export const useStreamingAvatarSession = () => {
       handleStreamingTalkingMessage,
       handleEndMessage,
       setIsAvatarTalking,
+      customerData,
     ],
   );
 

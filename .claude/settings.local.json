@@ -3,9 +3,21 @@
     "allow": [
       "Read(//c/Users/Ubicacion Gamer/OneDrive/Desktop/clara-heygen/InteractiveAvatarNextJSDemo/components/logic/**)",
       "Bash(mkdir:*)",
-      "Read(//c/Users/Ubicacion Gamer/OneDrive/Pictures/Screenshots/**)"
+      "Read(//c/Users/Ubicacion Gamer/OneDrive/Pictures/Screenshots/**)",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "WebFetch(domain:api.github.com)",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:docs.heygen.com)",
+      "Bash(curl -s \"https://raw.githubusercontent.com/HeyGen-Official/StreamingAvatarSDK/main/README.md\")",
+      "WebFetch(domain:shopify.dev)",
+      "WebSearch"
     ],
     "deny": [],
     "ask": []
-  }
+  },
+  "enabledMcpjsonServers": [
+    "shadcn",
+    "puppeteer",
+    "shopify-dev-mcp"
+  ]
 }

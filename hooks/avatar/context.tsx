@@ -4,6 +4,7 @@ import StreamingAvatar, {
   UserTalkingMessageEvent,
 } from "@heygen/streaming-avatar";
 import React, { useRef, useState } from "react";
+import { ClaraCustomerData } from "@/lib/shopify-client";
 
 export enum StreamingAvatarSessionState {
   INACTIVE = "inactive",
@@ -61,6 +62,9 @@ type StreamingAvatarContextProps = {
 
   connectionQuality: ConnectionQuality;
   setConnectionQuality: (connectionQuality: ConnectionQuality) => void;
+
+  customerData: ClaraCustomerData | null;
+  setCustomerData: (customerData: ClaraCustomerData | null) => void;
 };
 
 const StreamingAvatarContext = React.createContext<StreamingAvatarContextProps>(
@@ -89,6 +93,8 @@ const StreamingAvatarContext = React.createContext<StreamingAvatarContextProps>(
     setIsAvatarTalking: () => {},
     connectionQuality: ConnectionQuality.UNKNOWN,
     setConnectionQuality: () => {},
+    customerData: null,
+    setCustomerData: () => {},
   },
 );
 
@@ -219,12 +225,22 @@ const useStreamingAvatarConnectionQualityState = () => {
   return { connectionQuality, setConnectionQuality };
 };
 
+const useCustomerDataState = (initialCustomerData?: ClaraCustomerData | null) => {
+  const [customerData, setCustomerData] = useState<ClaraCustomerData | null>(
+    initialCustomerData || null
+  );
+
+  return { customerData, setCustomerData };
+};
+
 export const StreamingAvatarProvider = ({
   children,
   basePath,
+  customerData: initialCustomerData,
 }: {
   children: React.ReactNode;
   basePath?: string;
+  customerData?: ClaraCustomerData | null;
 }) => {
   const avatarRef = React.useRef<StreamingAvatar>(null);
   const voiceChatState = useStreamingAvatarVoiceChatState();
@@ -233,6 +249,7 @@ export const StreamingAvatarProvider = ({
   const listeningState = useStreamingAvatarListeningState();
   const talkingState = useStreamingAvatarTalkingState();
   const connectionQualityState = useStreamingAvatarConnectionQualityState();
+  const customerDataState = useCustomerDataState(initialCustomerData);
 
   return (
     <StreamingAvatarContext.Provider
@@ -245,6 +262,7 @@ export const StreamingAvatarProvider = ({
         ...listeningState,
         ...talkingState,
         ...connectionQualityState,
+        ...customerDataState,
       }}
     >
       {children}

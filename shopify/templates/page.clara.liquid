@@ -1,139 +1,197 @@
 {% comment %}
-  Template para página dedicada de Clara
+  Template para página de Clara integrada con Shopify
   URL: /pages/clara
 
   Clara maneja su propia autenticación (AuthGate)
-  No necesitamos password en Shopify
+  Muestra header/footer de Shopify + botón para salir
 {% endcomment %}
 
-<!DOCTYPE html>
-<html lang="es">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <meta name="robots" content="noindex, nofollow">
-  <title>Clara - Asesora Virtual | {{ shop.name }}</title>
+<style>
+  /* Contenedor principal de Clara */
+  .clara-page-wrapper {
+    min-height: 70vh;
+    position: relative;
+    background: #ffffff;
+  }
 
-  <style>
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
+  /* Contenedor del iframe */
+  .clara-iframe-container {
+    position: relative;
+    width: 100%;
+    height: 80vh;
+    min-height: 600px;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+    margin: 2rem auto;
+    max-width: 1400px;
+  }
+
+  /* iframe de Clara */
+  #clara-iframe {
+    width: 100%;
+    height: 100%;
+    border: none;
+    display: block;
+  }
+
+  /* Botón para salir */
+  .clara-exit-button {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 9999;
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(0,0,0,0.1);
+    border-radius: 50px;
+    padding: 12px 24px;
+    font-size: 14px;
+    font-weight: 500;
+    color: #333;
+    text-decoration: none;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transition: all 0.2s;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+  }
+
+  .clara-exit-button:hover {
+    background: rgba(255, 255, 255, 1);
+    box-shadow: 0 4px 15px rgba(0,0,0,0.15);
+    transform: translateY(-2px);
+  }
+
+  .clara-exit-button svg {
+    width: 18px;
+    height: 18px;
+  }
+
+  /* Loading screen */
+  .clara-loading {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    color: white;
+    transition: opacity 0.5s;
+    border-radius: 12px;
+  }
+
+  .clara-loading.hidden {
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  .clara-spinner {
+    width: 50px;
+    height: 50px;
+    border: 4px solid rgba(255,255,255,0.3);
+    border-top-color: white;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin-bottom: 20px;
+  }
+
+  @keyframes spin {
+    to { transform: rotate(360deg); }
+  }
+
+  .clara-loading-text {
+    font-size: 18px;
+    font-weight: 500;
+    margin-bottom: 8px;
+  }
+
+  .clara-loading-subtext {
+    font-size: 14px;
+    opacity: 0.8;
+  }
+
+  /* Header de la página */
+  .clara-page-header {
+    text-align: center;
+    padding: 3rem 1rem 1rem;
+    max-width: 800px;
+    margin: 0 auto;
+  }
+
+  .clara-page-header h1 {
+    font-size: 2.5rem;
+    font-weight: 700;
+    color: #1a1a1a;
+    margin-bottom: 1rem;
+  }
+
+  .clara-page-header p {
+    font-size: 1.1rem;
+    color: #666;
+    line-height: 1.6;
+  }
+
+  /* Mobile optimizations */
+  @media (max-width: 768px) {
+    .clara-iframe-container {
+      height: 70vh;
+      min-height: 500px;
+      margin: 1rem;
+      border-radius: 8px;
     }
 
-    html, body {
-      width: 100%;
-      height: 100%;
-      overflow: hidden;
+    .clara-page-header h1 {
+      font-size: 2rem;
     }
 
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      background: #ffffff;
+    .clara-page-header p {
+      font-size: 1rem;
     }
 
-    /* Contenedor del iframe */
-    .clara-container {
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100vw;
-      height: 100vh;
-      z-index: 9999;
+    .clara-exit-button {
+      top: 10px;
+      right: 10px;
+      padding: 10px 18px;
+      font-size: 13px;
     }
 
-    /* iframe de Clara */
-    #clara-iframe {
-      width: 100%;
-      height: 100%;
-      border: none;
-      display: block;
+    .clara-exit-button svg {
+      width: 16px;
+      height: 16px;
     }
+  }
+</style>
 
-    /* Loading screen */
-    .loading-screen {
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      flex-direction: column;
-      color: white;
-      z-index: 1;
-      transition: opacity 0.5s;
-    }
+<!-- Botón para salir (volver a la tienda) -->
+<a href="/" class="clara-exit-button">
+  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+  </svg>
+  Volver a la tienda
+</a>
 
-    .loading-screen.hidden {
-      opacity: 0;
-      pointer-events: none;
-    }
-
-    .spinner {
-      width: 50px;
-      height: 50px;
-      border: 4px solid rgba(255,255,255,0.3);
-      border-top-color: white;
-      border-radius: 50%;
-      animation: spin 1s linear infinite;
-      margin-bottom: 20px;
-    }
-
-    @keyframes spin {
-      to { transform: rotate(360deg); }
-    }
-
-    .loading-text {
-      font-size: 18px;
-      font-weight: 500;
-      margin-bottom: 8px;
-    }
-
-    .loading-subtext {
-      font-size: 14px;
-      opacity: 0.8;
-    }
-
-    /* Mobile optimizations */
-    @media (max-width: 768px) {
-      .clara-container {
-        /* En mobile, usar 100% del viewport */
-        height: 100dvh; /* dynamic viewport height */
-      }
-
-      .loading-text {
-        font-size: 16px;
-      }
-
-      .loading-subtext {
-        font-size: 12px;
-      }
-    }
-
-    /* Ocultar header/footer de Shopify */
-    .shopify-section-header,
-    .shopify-section-footer,
-    header,
-    footer,
-    nav {
-      display: none !important;
-    }
-  </style>
-</head>
-<body>
-
-  <!-- Loading screen -->
-  <div class="loading-screen" id="loading-screen">
-    <div class="spinner"></div>
-    <p class="loading-text">Cargando Clara...</p>
-    <p class="loading-subtext">Tu asesora virtual de skincare</p>
+<div class="clara-page-wrapper">
+  <!-- Header de la página -->
+  <div class="clara-page-header">
+    <h1>{{ page.title }}</h1>
+    <p>{{ page.content | default: "Habla con Clara, tu asesora virtual de skincare personalizada. Clara está aquí para ayudarte con recomendaciones y consejos expertos." }}</p>
   </div>
 
-  <!-- Clara iframe -->
-  <div class="clara-container">
+  <!-- Contenedor del iframe -->
+  <div class="clara-iframe-container">
+    <!-- Loading screen -->
+    <div class="clara-loading" id="clara-loading">
+      <div class="clara-spinner"></div>
+      <p class="clara-loading-text">Cargando Clara...</p>
+      <p class="clara-loading-subtext">Tu asesora virtual de skincare</p>
+    </div>
+
+    <!-- Clara iframe -->
     <iframe
       src="https://clara-shopify.vercel.app"
       id="clara-iframe"
@@ -143,45 +201,25 @@
       loading="eager">
     </iframe>
   </div>
+</div>
 
-  <script>
-    // Ocultar loading screen cuando iframe carga
+<script>
+  // Ocultar loading screen cuando iframe carga
+  (function() {
     const iframe = document.getElementById('clara-iframe');
-    const loadingScreen = document.getElementById('loading-screen');
+    const loading = document.getElementById('clara-loading');
 
-    iframe.addEventListener('load', function() {
-      setTimeout(function() {
-        loadingScreen.classList.add('hidden');
-      }, 500);
-    });
-
-    // Timeout fallback (si iframe no dispara load)
-    setTimeout(function() {
-      loadingScreen.classList.add('hidden');
-    }, 5000);
-
-    // Prevenir que la página de Shopify sea "scrollable"
-    document.body.style.overflow = 'hidden';
-    document.documentElement.style.overflow = 'hidden';
-
-    // Ocultar elementos de Shopify
-    document.addEventListener('DOMContentLoaded', function() {
-      const elementsToHide = [
-        '.shopify-section-header',
-        '.shopify-section-footer',
-        'header',
-        'footer',
-        'nav'
-      ];
-
-      elementsToHide.forEach(function(selector) {
-        const elements = document.querySelectorAll(selector);
-        elements.forEach(function(element) {
-          element.style.display = 'none';
-        });
+    if (iframe && loading) {
+      iframe.addEventListener('load', function() {
+        setTimeout(function() {
+          loading.classList.add('hidden');
+        }, 500);
       });
-    });
-  </script>
 
-</body>
-</html>
+      // Timeout fallback
+      setTimeout(function() {
+        loading.classList.add('hidden');
+      }, 5000);
+    }
+  })();
+</script>

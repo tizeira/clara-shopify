@@ -3,7 +3,8 @@
   URL: /pages/clara
 
   Clara maneja su propia autenticación (AuthGate)
-  Muestra header/footer de Shopify + botón para salir
+  Muestra header/footer de Shopify con navegación completa
+  Iframe optimizado full-width para máxima visibilidad del avatar
 {% endcomment %}
 
 <style>
@@ -20,11 +21,11 @@
     width: 100%;
     height: 80vh;
     min-height: 600px;
-    border-radius: 12px;
+    border-radius: 0;
     overflow: hidden;
-    box-shadow: 0 4px 20px rgba(0,0,0,0.08);
-    margin: 2rem auto;
-    max-width: 1400px;
+    box-shadow: none;
+    margin: 0;
+    max-width: 100%;
   }
 
   /* iframe de Clara */
@@ -35,38 +36,6 @@
     display: block;
   }
 
-  /* Botón para salir */
-  .clara-exit-button {
-    position: fixed;
-    top: 20px;
-    right: 20px;
-    z-index: 9999;
-    background: rgba(255, 255, 255, 0.95);
-    backdrop-filter: blur(10px);
-    border: 1px solid rgba(0,0,0,0.1);
-    border-radius: 50px;
-    padding: 12px 24px;
-    font-size: 14px;
-    font-weight: 500;
-    color: #333;
-    text-decoration: none;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    transition: all 0.2s;
-    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-  }
-
-  .clara-exit-button:hover {
-    background: rgba(255, 255, 255, 1);
-    box-shadow: 0 4px 15px rgba(0,0,0,0.15);
-    transform: translateY(-2px);
-  }
-
-  .clara-exit-button svg {
-    width: 18px;
-    height: 18px;
-  }
 
   /* Loading screen */
   .clara-loading {
@@ -82,7 +51,7 @@
     flex-direction: column;
     color: white;
     transition: opacity 0.5s;
-    border-radius: 12px;
+    border-radius: 0;
   }
 
   .clara-loading.hidden {
@@ -141,8 +110,8 @@
     .clara-iframe-container {
       height: 70vh;
       min-height: 500px;
-      margin: 1rem;
-      border-radius: 8px;
+      margin: 0;
+      border-radius: 0;
     }
 
     .clara-page-header h1 {
@@ -152,28 +121,8 @@
     .clara-page-header p {
       font-size: 1rem;
     }
-
-    .clara-exit-button {
-      top: 10px;
-      right: 10px;
-      padding: 10px 18px;
-      font-size: 13px;
-    }
-
-    .clara-exit-button svg {
-      width: 16px;
-      height: 16px;
-    }
   }
 </style>
-
-<!-- Botón para salir (volver a la tienda) -->
-<a href="{{ routes.root_url }}" class="clara-exit-button">
-  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-  </svg>
-  Volver a la tienda
-</a>
 
 <div class="clara-page-wrapper">
   <!-- Header de la página -->

@@ -18,9 +18,13 @@ import { ClaraCustomerData } from "@/lib/shopify-client"
 
 // Avatar configuration by screen size
 // Uses environment variables from Vercel, with local fallbacks
+// NEXT_PUBLIC_HEYGEN_AVATAR_ID = Mobile avatar (vertical/portrait format)
+// NEXT_PUBLIC_HEYGEN_DESKTOP_AVATAR_ID = Desktop avatar (horizontal/landscape format)
 const getResponsiveAvatarConfig = (isDesktop: boolean): StartAvatarRequest => ({
   quality: AvatarQuality.Low, // Low quality for better performance
-  avatarName: process.env.NEXT_PUBLIC_HEYGEN_AVATAR_ID || "Alessandra_CasualLook_public",
+  avatarName: isDesktop
+    ? (process.env.NEXT_PUBLIC_HEYGEN_DESKTOP_AVATAR_ID || process.env.NEXT_PUBLIC_HEYGEN_AVATAR_ID || "Alessandra_Chair_Sitting_public")
+    : (process.env.NEXT_PUBLIC_HEYGEN_AVATAR_ID || "Alessandra_CasualLook_public"),
   knowledgeId: process.env.NEXT_PUBLIC_HEYGEN_KNOWLEDGE_ID || "588f6e52f25e4f228666c0c3d799860f",
   voice: {
     voiceId: process.env.NEXT_PUBLIC_HEYGEN_VOICE_ID || "1e080de3d73e4225a7454797a848bffe",

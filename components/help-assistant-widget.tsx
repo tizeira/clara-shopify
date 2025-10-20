@@ -212,14 +212,14 @@ function ClaraWidgetMobile() {
         paddingBottom: 'env(safe-area-inset-bottom)'
       }}
     >
-      {/* Top Status Bar - Minimal and Discrete */}
-      <div className="flex-shrink-0 px-4 pt-3 pb-2">
-        <div className="bg-white/30 backdrop-blur-sm rounded-xl px-4 py-2 border border-white/20 mx-auto max-w-xs shadow-md">
-          <p className="text-slate-700 font-medium text-center text-xs">{getStatusText()}</p>
+      {/* Top Status Bar - Ultra Minimal on Mobile, Discrete on Desktop */}
+      <div className="flex-shrink-0 px-2 pt-2 pb-1 md:px-4 md:pt-3 md:pb-2">
+        <div className="bg-white/30 backdrop-blur-sm rounded-lg md:rounded-xl px-3 py-1.5 md:px-4 md:py-2 border border-white/20 mx-auto max-w-xs shadow-md">
+          <p className="text-slate-700 font-medium text-center text-[10px] md:text-xs">{getStatusText()}</p>
           {isVoiceChatActive && (
-            <div className="flex items-center justify-center gap-1.5 mt-1">
-              <div className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></div>
-              <span className="text-[10px] text-green-600 font-medium">Conectada</span>
+            <div className="flex items-center justify-center gap-1 md:gap-1.5 mt-0.5 md:mt-1">
+              <div className="w-1 h-1 md:w-1.5 md:h-1.5 bg-green-500 rounded-full animate-pulse"></div>
+              <span className="text-[9px] md:text-[10px] text-green-600 font-medium">Conectada</span>
             </div>
           )}
         </div>
@@ -227,9 +227,9 @@ function ClaraWidgetMobile() {
 
       {/* Clara Video Container - Maximum Height */}
       <div className="flex-1 relative overflow-hidden">
-        <div className="absolute inset-0 p-2 md:p-4 lg:p-6">
-          {/* Video Frame - Responsive sizing OPTIMIZED FOR FULL WIDTH */}
-          <div className="w-full h-full max-w-md mx-auto md:max-w-2xl lg:max-w-4xl xl:max-w-5xl 2xl:max-w-6xl bg-white/95 backdrop-blur-sm rounded-2xl overflow-hidden shadow-lg border border-slate-200/30 relative">
+        <div className="absolute inset-0 p-0 md:p-4 lg:p-6">
+          {/* Video Frame - Responsive sizing: MOBILE FULL-SCREEN + DESKTOP OPTIMIZED */}
+          <div className="w-full h-full max-w-full mx-auto md:max-w-2xl lg:max-w-4xl xl:max-w-5xl 2xl:max-w-6xl bg-white/95 md:backdrop-blur-sm rounded-none md:rounded-2xl overflow-hidden md:shadow-lg md:border md:border-slate-200/30 relative">
             <div className="w-full h-full relative">
               {stream ? (
                 <AvatarVideo

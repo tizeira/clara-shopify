@@ -227,9 +227,9 @@ function ClaraWidgetMobile() {
 
       {/* Clara Video Container - Maximum Height */}
       <div className="flex-1 relative overflow-hidden">
-        <div className="absolute inset-0 p-0 md:p-4 lg:p-6">
-          {/* Video Frame - Responsive sizing: MOBILE FULL-SCREEN + DESKTOP OPTIMIZED */}
-          <div className="w-full h-full max-w-full mx-auto md:max-w-2xl lg:max-w-4xl xl:max-w-5xl 2xl:max-w-6xl bg-white/95 md:backdrop-blur-sm rounded-none md:rounded-2xl overflow-hidden md:shadow-lg md:border md:border-slate-200/30 relative">
+        <div className="absolute inset-0 p-3 md:p-4 lg:p-6">
+          {/* Video Frame - Responsive sizing: MOBILE OPTIMIZED VERTICAL + DESKTOP WIDE */}
+          <div className="w-full h-full max-w-sm mx-auto md:max-w-2xl lg:max-w-4xl xl:max-w-5xl 2xl:max-w-6xl bg-white/95 md:backdrop-blur-sm rounded-xl md:rounded-2xl overflow-hidden md:shadow-lg md:border md:border-slate-200/30 relative">
             <div className="w-full h-full relative">
               {stream ? (
                 <AvatarVideo

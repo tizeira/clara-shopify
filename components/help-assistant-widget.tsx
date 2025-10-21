@@ -292,16 +292,19 @@ function ClaraWidgetMobile() {
 interface HelpAssistantWidgetProps {
   customerData?: ClaraCustomerData | null;
   customerDataLoading?: boolean;
+  userName?: string | null;
 }
 
 export default function HelpAssistantWidgetMobile({
   customerData,
-  customerDataLoading
+  customerDataLoading,
+  userName
 }: HelpAssistantWidgetProps) {
   return (
     <StreamingAvatarProvider
       basePath={process.env.NEXT_PUBLIC_BASE_API_URL}
       customerData={customerData}
+      userName={userName}
     >
       <ClaraWidgetMobile />
     </StreamingAvatarProvider>

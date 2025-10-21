@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react"
 import HelpAssistantWidget from "@/components/help-assistant-widget"
 import { AuthGate } from "@/components/AuthGate"
+import { NameCapture } from "@/components/NameCapture"
 import { ClaraCustomerData } from "@/lib/shopify-client"
 
 export default function Home() {
@@ -10,6 +11,8 @@ export default function Home() {
   const [isLoading, setIsLoading] = useState(true)
   const [customerData, setCustomerData] = useState<ClaraCustomerData | null>(null)
   const [customerDataLoading, setCustomerDataLoading] = useState(false)
+  const [userName, setUserName] = useState<string | null>(null)
+  const [showNameCapture, setShowNameCapture] = useState(false)
 
   // Check authentication status and load Shopify customer data on mount
   useEffect(() => {
@@ -50,21 +53,48 @@ export default function Home() {
         .then((data) => {
           if (data.success && data.customer) {
             setCustomerData(data.customer)
-            console.log('✅ Customer data loaded:', data.customer.firstName, data.customer.lastName)
+            console.log('✅ Shopify customer data loaded:', data.customer.firstName, data.customer.lastName)
+            // Si hay customerData de Shopify, no necesitamos NameCapture
+            setShowNameCapture(false)
           }
         })
         .catch((error) => {
-          console.error('❌ Failed to load customer data:', error)
-          // Continue without customer data - Clara will work in generic mode
+          console.error('❌ Failed to load Shopify customer data:', error)
+          // Si falla Shopify, verificar localStorage
+          checkLocalUserName()
         })
         .finally(() => {
           setCustomerDataLoading(false)
         })
+    } else {
+      // No hay params de Shopify, verificar localStorage
+      checkLocalUserName()
+    }
+
+    function checkLocalUserName() {
+      const storedName = localStorage.getItem('clara_user_name')
+      if (storedName) {
+        setUserName(storedName)
+        console.log('✅ Loaded userName from localStorage:', storedName)
+        setShowNameCapture(false)
+      } else {
+        // No hay ni Shopify ni localStorage, mostrar NameCapture
+        setShowNameCapture(true)
+      }
     }
   }, [])
 
   const handleAuthenticated = () => {
     setIsAuthenticated(true)
+  }
+
+  const handleNameSubmit = (name: string | null) => {
+    if (name) {
+      localStorage.setItem('clara_user_name', name)
+      setUserName(name)
+      console.log('✅ Saved userName to localStorage:', name)
+    }
+    setShowNameCapture(false)
   }
 
   if (isLoading) {
@@ -92,12 +122,15 @@ export default function Home() {
         </div>
       </div>
 
-      {/* Conditional rendering: Auth Gate or Clara App */}
+      {/* Conditional rendering: NameCapture, Auth Gate or Clara App */}
       <div className="relative z-10 min-h-screen">
-        {isAuthenticated ? (
+        {showNameCapture ? (
+          <NameCapture onNameSubmit={handleNameSubmit} />
+        ) : isAuthenticated ? (
           <HelpAssistantWidget
             customerData={customerData}
             customerDataLoading={customerDataLoading}
+            userName={userName}
           />
         ) : (
           <AuthGate onAuthenticated={handleAuthenticated} />

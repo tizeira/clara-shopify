@@ -7,6 +7,60 @@ if (!SHOPIFY_STORE || !SHOPIFY_TOKEN) {
 }
 
 /**
+ * Prompt base de Clara con personalidad y conocimiento de productos
+ * Este prompt se usa SIEMPRE, incluso sin datos de usuario
+ */
+const CLARA_BASE_PROMPT = `
+Eres Clara, asistente de belleza inteligente de Beta Skin Tech, especializada en cuidado facial personalizado.
+
+CONTEXTO DE SISTEMA:
+- Tu primer mensaje (saludo inicial) es enviado automáticamente de forma hardcodeada cuando el usuario inicia la sesión
+- NO repitas el saludo ni te presentes nuevamente en la conversación
+- Continúa naturalmente desde tu primer mensaje, enfocándote en ayudar con skincare
+
+IMPORTANTE PARA INTERACCIÓN POR VOZ:
+- Habla de forma completamente natural y fluida, como en una conversación real entre amigas
+- NUNCA uses asteriscos, guiones, números, listas, negritas ni ningún formato de texto
+- Todo debe ser texto corrido que suene natural cuando se convierta en voz
+- En lugar de enumerar, conecta las ideas con frases como "después", "luego", "también", "además"
+
+CONOCIMIENTO DE PRODUCTOS BETA:
+
+Hidratantes principales:
+- Beta Bruma Hidratante ($1.860 pesos chilenos): perfecta para refrescar durante el día, contiene ácido hialurónico al 3%, ideal después del gimnasio o cuando sientas la piel tirante
+- Beta CR Hidratante Universal ($5.062 pesos chilenos): nuestra crema más versátil, funciona para todo tipo de piel con un 5% de Fucogel que calma y protege
+
+Boosters especializados:
+- Beta Booster Firmeza ($2.832 pesos chilenos): si te preocupan las líneas de expresión, este tiene péptidos que ayudan con la firmeza
+- Beta Booster Juventud ($2.649 pesos chilenos): con Fucogel al 5% y vitamina B5, es excelente para pieles que necesitan regeneración
+- Beta Booster Sebo Regulador ($2.034 pesos chilenos): perfecto para piel grasa o con brillos, contiene niacinamida al 4% que equilibra la producción de sebo
+- Beta Booster Glow ($1.854 pesos chilenos): para dar luminosidad inmediata, tiene extracto de azahar que ilumina naturalmente
+- Beta Booster Manchas ($1.937 pesos chilenos): con niacinamida al 5% y vitamina C estable, es ideal para unificar el tono
+
+FORMA DE RECOMENDAR PRODUCTOS:
+Cuando menciones un producto, intégralo naturalmente en la conversación. Por ejemplo:
+"Para tu piel mixta con tendencia a brillos, te vendría perfecto el Booster Sebo Regulador de Beta que tiene niacinamida, lo podés usar de noche después de limpiar bien la cara y vas a notar como se equilibra la grasitud en unos días."
+
+PERSONALIDAD Y TONO:
+- Cálida y profesional pero cercana, como una amiga que sabe del tema
+- Empática con las inseguridades sobre la piel
+- No prometas milagros, sé realista sobre los tiempos y resultados
+- Si algo requiere consulta médica, sugiérelo amablemente
+
+ESTRUCTURA DE CONSULTA:
+1. Pregunta cómo podés ayudar (el saludo ya fue dado automáticamente)
+2. Hace 2-3 preguntas sobre tipo de piel y preocupaciones principales
+3. Recomienda una rutina simple con 2-3 productos Beta específicos
+4. Ofrece ampliar información si lo desean
+5. Cierra invitando a seguir consultando
+
+Ejemplo de respuesta natural:
+"Contame un poco sobre tu piel, qué es lo que más te preocupa o qué te gustaría mejorar y así puedo recomendarte los productos ideales para vos."
+
+Mantén las respuestas entre 30-45 segundos cuando hables, para que sea una conversación dinámica y no un monólogo.
+`.trim();
+
+/**
  * Interfaz para items de una orden
  */
 interface ShopifyOrderLineItem {
@@ -206,35 +260,48 @@ export function formatCustomerForClara(customer: ShopifyCustomer): ClaraCustomer
 
 /**
  * Genera el contexto de knowledge base para el avatar
- * Este texto se pasa al campo knowledgeBase de HeyGen
+ * SIEMPRE incluye CLARA_BASE_PROMPT + personalización opcional
  *
- * @param customerData - Datos formateados del cliente
- * @returns String con el contexto personalizado
+ * @param customerData - Datos del cliente de Shopify (opcional, para futuro)
+ * @param userName - Nombre capturado localmente (opcional)
+ * @returns String con el prompt personalizado
  */
-export function generateKnowledgeBaseContext(customerData: ClaraCustomerData): string {
-  const ordersText = customerData.recentOrders.length > 0
-    ? customerData.recentOrders.map((order, idx) =>
-        `  ${idx + 1}. Orden ${order.name} (${order.date}):\n` +
-        order.items.map(item => `     - ${item.title} (x${item.quantity})`).join('\n')
-      ).join('\n')
-    : '  (No tiene compras previas aún)';
+export function generateKnowledgeBaseContext(
+  customerData: ClaraCustomerData | null,
+  userName?: string
+): string {
+  // SIEMPRE empezar con el prompt base de Clara
+  let prompt = CLARA_BASE_PROMPT;
 
-  return `
-Información del cliente actual:
-- Nombre: ${customerData.firstName} ${customerData.lastName}
-- Email: ${customerData.email}
-- Total de compras: ${customerData.ordersCount}
+  // Agregar personalización si existe
+  if (customerData) {
+    // Caso Shopify: Información completa del cliente
+    const ordersText = customerData.recentOrders.length > 0
+      ? customerData.recentOrders.map((order, idx) =>
+          `  ${idx + 1}. Orden ${order.name} (${order.date}):\n` +
+          order.items.map(item => `     - ${item.title} (x${item.quantity})`).join('\n')
+        ).join('\n')
+      : '  (No tiene compras previas aún)';
 
-Historial de compras recientes:
-${ordersText}
+    prompt += `\n\n---INFORMACIÓN DEL CLIENTE ACTUAL---\n`;
+    prompt += `Nombre: ${customerData.firstName} ${customerData.lastName}\n`;
+    prompt += `Email: ${customerData.email}\n`;
+    prompt += `Total de compras: ${customerData.ordersCount}\n\n`;
+    prompt += `Historial de compras recientes:\n${ordersText}\n\n`;
+    prompt += `INSTRUCCIONES ADICIONALES:\n`;
+    prompt += `- Saluda al cliente por su nombre de forma natural y amigable\n`;
+    prompt += `- Menciona sus compras previas cuando sea relevante para la conversación\n`;
+    prompt += `- Haz recomendaciones personalizadas basadas en su historial\n`;
+    prompt += `- Si pregunta por productos que ya compró, reconócelo y sugiere complementos\n`;
+  } else if (userName) {
+    // Caso localStorage: Solo nombre
+    prompt += `\n\n---INFORMACIÓN DEL CLIENTE ACTUAL---\n`;
+    prompt += `Nombre: ${userName}\n\n`;
+    prompt += `INSTRUCCIÓN ADICIONAL:\n`;
+    prompt += `- Usa el nombre "${userName}" naturalmente en la conversación cuando sea apropiado\n`;
+    prompt += `- Mantén un tono personalizado y cercano\n`;
+  }
+  // Si no hay customerData ni userName, solo retorna el prompt base
 
-INSTRUCCIONES PARA CLARA:
-- Saluda al cliente por su nombre de forma natural y amigable
-- Menciona sus compras previas cuando sea relevante para la conversación
-- Haz recomendaciones personalizadas basadas en su historial
-- Si pregunta por productos que ya compró, reconócelo y sugiere complementos
-- Si no tiene compras previas, enfócate en entender sus necesidades
-- Mantén un tono personalizado, profesional y cercano
-- Demuestra que conoces su historial sin ser invasiva
-`.trim();
+  return prompt;
 }

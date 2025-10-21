@@ -65,6 +65,9 @@ type StreamingAvatarContextProps = {
 
   customerData: ClaraCustomerData | null;
   setCustomerData: (customerData: ClaraCustomerData | null) => void;
+
+  userName: string | null;
+  setUserName: (userName: string | null) => void;
 };
 
 const StreamingAvatarContext = React.createContext<StreamingAvatarContextProps>(
@@ -95,6 +98,8 @@ const StreamingAvatarContext = React.createContext<StreamingAvatarContextProps>(
     setConnectionQuality: () => {},
     customerData: null,
     setCustomerData: () => {},
+    userName: null,
+    setUserName: () => {},
   },
 );
 
@@ -233,14 +238,24 @@ const useCustomerDataState = (initialCustomerData?: ClaraCustomerData | null) =>
   return { customerData, setCustomerData };
 };
 
+const useUserNameState = (initialUserName?: string | null) => {
+  const [userName, setUserName] = useState<string | null>(
+    initialUserName || null
+  );
+
+  return { userName, setUserName };
+};
+
 export const StreamingAvatarProvider = ({
   children,
   basePath,
   customerData: initialCustomerData,
+  userName: initialUserName,
 }: {
   children: React.ReactNode;
   basePath?: string;
   customerData?: ClaraCustomerData | null;
+  userName?: string | null;
 }) => {
   const avatarRef = React.useRef<StreamingAvatar>(null);
   const voiceChatState = useStreamingAvatarVoiceChatState();
@@ -250,6 +265,7 @@ export const StreamingAvatarProvider = ({
   const talkingState = useStreamingAvatarTalkingState();
   const connectionQualityState = useStreamingAvatarConnectionQualityState();
   const customerDataState = useCustomerDataState(initialCustomerData);
+  const userNameState = useUserNameState(initialUserName);
 
   return (
     <StreamingAvatarContext.Provider
@@ -263,6 +279,7 @@ export const StreamingAvatarProvider = ({
         ...talkingState,
         ...connectionQualityState,
         ...customerDataState,
+        ...userNameState,
       }}
     >
       {children}

@@ -30,6 +30,7 @@ export const useStreamingAvatarSession = () => {
     handleEndMessage,
     clearMessages,
     customerData,
+    userName,
   } = useStreamingAvatarContext();
   const { stopVoiceChat } = useVoiceChat();
 
@@ -58,18 +59,26 @@ export const useStreamingAvatarSession = () => {
     async (event: any) => {
       handleStream(event);
 
+      // Determinar nombre para saludo personalizado
+      const userFirstName = customerData?.firstName || userName;
+
+      // Saludo personalizado si hay nombre, genérico si no
+      const greeting = userFirstName
+        ? `¡Hola ${userFirstName}! Soy Clara de Beta Skin Tech, tu asesora virtual de skincare. ¿En qué puedo ayudarte hoy?`
+        : `¡Hola! Soy Clara de Beta Skin Tech, tu asesora virtual de skincare. ¿En qué puedo ayudarte hoy?`;
+
       // Send initial greeting immediately when stream is ready
       try {
         await avatarRef.current?.speak({
-          text: "¡Hola! Soy Clara, tu asesora virtual de skincare de Beta Skin Tech. ¿En qué puedo ayudarte hoy?",
+          text: greeting,
           taskType: TaskType.REPEAT, // REPEAT = only TTS, no LLM processing
         });
-        console.log("✅ Initial greeting sent to avatar");
+        console.log("✅ Initial greeting sent:", greeting);
       } catch (error) {
         console.error("Failed to send initial greeting:", error);
       }
     },
-    [handleStream, avatarRef],
+    [handleStream, avatarRef, customerData, userName],
   );
 
   const stop = useCallback(async () => {
@@ -148,14 +157,21 @@ export const useStreamingAvatarSession = () => {
         handleEndMessage,
       );
 
-      // Personalize knowledgeBase if customer data exists
+      // SIEMPRE usar knowledge base personalizada (con o sin datos de usuario)
       const finalConfig = { ...config };
+
       if (customerData) {
-        const customContext = generateKnowledgeBaseContext(customerData);
-        finalConfig.knowledgeBase = customContext;
-        console.log('✅ Using personalized knowledge base for:', customerData.firstName, customerData.lastName);
+        // Prioridad 1: Datos completos de Shopify (futuro)
+        finalConfig.knowledgeBase = generateKnowledgeBaseContext(customerData);
+        console.log('✅ Using Shopify customer knowledge base:', customerData.firstName, customerData.lastName);
+      } else if (userName) {
+        // Prioridad 2: Solo nombre de localStorage
+        finalConfig.knowledgeBase = generateKnowledgeBaseContext(null, userName);
+        console.log('✅ Using personalized knowledge base for:', userName);
       } else {
-        console.log('ℹ️  No customer data - using default knowledge base');
+        // Prioridad 3: Solo prompt base (sin personalización)
+        finalConfig.knowledgeBase = generateKnowledgeBaseContext(null);
+        console.log('ℹ️  Using base Clara prompt without personalization');
       }
 
       await avatarRef.current.createStartAvatar(finalConfig);
@@ -176,6 +192,7 @@ export const useStreamingAvatarSession = () => {
       handleEndMessage,
       setIsAvatarTalking,
       customerData,
+      userName,
     ],
   );
 

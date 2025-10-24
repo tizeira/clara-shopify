@@ -12,7 +12,7 @@ import {
 } from "@/hooks/avatar"
 import { AvatarVideo } from "@/components/avatar/AvatarVideo"
 import { VoiceInterface } from "@/components/avatar/VoiceInterface"
-import { AvatarQuality, VoiceEmotion, STTProvider, VoiceChatTransport, StartAvatarRequest, StreamingEvents } from "@heygen/streaming-avatar"
+import { AvatarQuality, VoiceEmotion, STTProvider, VoiceChatTransport, StartAvatarRequest, StreamingEvents, ElevenLabsModel } from "@heygen/streaming-avatar"
 import { useMemoizedFn, useUnmount } from "ahooks"
 import { ClaraCustomerData } from "@/lib/shopify-client"
 
@@ -21,7 +21,7 @@ import { ClaraCustomerData } from "@/lib/shopify-client"
 // NEXT_PUBLIC_HEYGEN_AVATAR_ID = Mobile avatar (vertical/portrait format)
 // NEXT_PUBLIC_HEYGEN_DESKTOP_AVATAR_ID = Desktop avatar (horizontal/landscape format)
 const getResponsiveAvatarConfig = (isDesktop: boolean): StartAvatarRequest => ({
-  quality: AvatarQuality.Low, // Low quality for better performance
+  quality: AvatarQuality.Medium, // CAMBIO 1: Medium quality (1000kbps @ 480p) for better clarity
   avatarName: isDesktop
     ? (process.env.NEXT_PUBLIC_HEYGEN_DESKTOP_AVATAR_ID || process.env.NEXT_PUBLIC_HEYGEN_AVATAR_ID || "Alessandra_Chair_Sitting_public")
     : (process.env.NEXT_PUBLIC_HEYGEN_AVATAR_ID || "Alessandra_CasualLook_public"),
@@ -30,6 +30,12 @@ const getResponsiveAvatarConfig = (isDesktop: boolean): StartAvatarRequest => ({
     voiceId: process.env.NEXT_PUBLIC_HEYGEN_VOICE_ID || "1e080de3d73e4225a7454797a848bffe",
     rate: 1,
     emotion: VoiceEmotion.SERIOUS,
+    model: ElevenLabsModel.eleven_flash_v2_5, // CAMBIO 2: Fast model for reduced latency
+    elevenlabsSettings: { // CAMBIO 3: Optimized audio quality settings
+      stability: 0.8, // Higher stability for consistent voice
+      similarity_boost: 0.85, // Enhanced voice similarity and clarity
+      use_speaker_boost: true, // Boost speaker clarity
+    },
   },
   language: "es",
   voiceChatTransport: VoiceChatTransport.WEBSOCKET,

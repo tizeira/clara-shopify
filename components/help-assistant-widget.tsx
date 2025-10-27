@@ -82,6 +82,30 @@ const useFixedHeight = () => {
     }
   }, []);
 
+  // Remove scrollbar and prevent scrolling in mobile iframe
+  useEffect(() => {
+    if (isInIframe && window.innerWidth < 1024) {
+      // Store original values
+      const originalBodyOverflow = document.body.style.overflow;
+      const originalHtmlOverflow = document.documentElement.style.overflow;
+      const originalBodyHeight = document.body.style.height;
+
+      // Apply overflow hidden to remove scrollbar
+      document.body.style.overflow = 'hidden';
+      document.documentElement.style.overflow = 'hidden';
+      document.body.style.height = `${window.innerHeight}px`;
+
+      console.log('🚫 Scrollbar removed in mobile iframe');
+
+      return () => {
+        // Cleanup: restore original values
+        document.body.style.overflow = originalBodyOverflow;
+        document.documentElement.style.overflow = originalHtmlOverflow;
+        document.body.style.height = originalBodyHeight;
+      };
+    }
+  }, [isInIframe]);
+
   return { fixedHeight, isInIframe };
 };
 

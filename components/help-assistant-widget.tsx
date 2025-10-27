@@ -62,11 +62,35 @@ const useScreenSize = () => {
   return { isDesktop };
 };
 
+// Hook to detect iframe and fix height on mobile
+const useFixedHeight = () => {
+  const [fixedHeight, setFixedHeight] = useState<number | null>(null);
+  const [isInIframe, setIsInIframe] = useState(false);
+
+  useEffect(() => {
+    // Detect if we're in an iframe
+    const inIframe = window.self !== window.top;
+    setIsInIframe(inIframe);
+
+    // If in iframe and mobile, calculate and fix height once
+    if (inIframe && window.innerWidth < 1024) {
+      // Use window.innerHeight which gives us the actual viewport height
+      // This prevents the jumping when URL bar appears/disappears in mobile browsers
+      const height = window.innerHeight;
+      setFixedHeight(height);
+      console.log('📱 Fixed height for mobile iframe:', height);
+    }
+  }, []);
+
+  return { fixedHeight, isInIframe };
+};
+
 function ClaraWidgetMobile() {
   const { initAvatar, startAvatar, stopAvatar, sessionState, stream } = useStreamingAvatarSession();
   const { startVoiceChat } = useVoiceChat();
   const { isVoiceChatActive, isUserTalking, isAvatarTalking, isMuted } = useStreamingAvatarContext();
   const { isDesktop } = useScreenSize();
+  const { fixedHeight, isInIframe } = useFixedHeight();
 
   const [isVoiceMode, setIsVoiceMode] = useState(false);
   const mediaStream = useRef<HTMLVideoElement>(null);
@@ -165,7 +189,14 @@ function ClaraWidgetMobile() {
   // Landing State - Before connection
   if (sessionState === StreamingAvatarSessionState.INACTIVE) {
     return (
-      <div className="min-h-screen flex items-center justify-center p-6" style={{ paddingTop: 'env(safe-area-inset-top)', paddingBottom: 'env(safe-area-inset-bottom)' }}>
+      <div
+        className={fixedHeight ? "flex items-center justify-center p-6" : "min-h-screen flex items-center justify-center p-6"}
+        style={{
+          paddingTop: 'env(safe-area-inset-top)',
+          paddingBottom: 'env(safe-area-inset-bottom)',
+          ...(fixedHeight ? { height: `${fixedHeight}px`, overflow: 'hidden' } : {})
+        }}
+      >
         <div className="text-center space-y-8 max-w-sm mx-auto">
           <div className="space-y-4">
             <div className="w-20 h-20 mx-auto bg-white/20 backdrop-blur-md rounded-full flex items-center justify-center border border-white/30 shadow-lg">
@@ -195,7 +226,14 @@ function ClaraWidgetMobile() {
   // Connecting State
   if (sessionState === StreamingAvatarSessionState.CONNECTING) {
     return (
-      <div className="min-h-screen flex items-center justify-center" style={{ paddingTop: 'env(safe-area-inset-top)', paddingBottom: 'env(safe-area-inset-bottom)' }}>
+      <div
+        className={fixedHeight ? "flex items-center justify-center" : "min-h-screen flex items-center justify-center"}
+        style={{
+          paddingTop: 'env(safe-area-inset-top)',
+          paddingBottom: 'env(safe-area-inset-bottom)',
+          ...(fixedHeight ? { height: `${fixedHeight}px`, overflow: 'hidden' } : {})
+        }}
+      >
         <div className="text-center space-y-6">
           <div className="w-20 h-20 mx-auto bg-white/20 backdrop-blur-md rounded-full flex items-center justify-center border border-white/30 shadow-lg">
             <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
@@ -212,10 +250,12 @@ function ClaraWidgetMobile() {
   // Connected State - Fixed Vertical Layout
   return (
     <div
-      className="min-h-screen flex flex-col"
+      className={fixedHeight ? "flex flex-col" : "min-h-screen flex flex-col"}
       style={{
         paddingTop: 'env(safe-area-inset-top)',
-        paddingBottom: 'env(safe-area-inset-bottom)'
+        paddingBottom: 'env(safe-area-inset-bottom)',
+        // Fix height in mobile iframe to prevent jumping when scrolling
+        ...(fixedHeight ? { height: `${fixedHeight}px`, overflow: 'hidden' } : {})
       }}
     >
       {/* Top Status Bar - Ultra Minimal on Mobile, Discrete on Desktop */}

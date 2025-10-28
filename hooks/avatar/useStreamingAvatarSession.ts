@@ -4,7 +4,7 @@ import StreamingAvatar, {
   StreamingEvents,
   TaskType,
 } from "@heygen/streaming-avatar";
-import { useCallback } from "react";
+import { useCallback, useRef } from "react";
 
 import {
   StreamingAvatarSessionState,
@@ -34,6 +34,12 @@ export const useStreamingAvatarSession = () => {
   } = useStreamingAvatarContext();
   const { stopVoiceChat } = useVoiceChat();
 
+  // Timing measurements for latency diagnosis
+  const timingRef = useRef({
+    userEndTime: 0,
+    avatarStartTime: 0,
+  });
+
   const init = useCallback(
     (token: string) => {
       avatarRef.current = new StreamingAvatar({
@@ -54,18 +60,32 @@ export const useStreamingAvatarSession = () => {
     [setSessionState, setStream],
   );
 
-  // Enhanced handler for STREAM_READY with initial greeting
+  // Enhanced handler for STREAM_READY with dynamic contextual greeting
   const handleStreamReady = useCallback(
     async (event: any) => {
       handleStream(event);
 
-      // Determinar nombre para saludo personalizado
-      const userFirstName = customerData?.firstName || userName;
+      let greeting: string;
 
-      // Saludo personalizado si hay nombre, genérico si no
-      const greeting = userFirstName
-        ? `¡Hola ${userFirstName}! Soy Clara de Beta Skin Tech, tu asesora virtual de skincare. ¿En qué puedo ayudarte hoy?`
-        : `¡Hola! Soy Clara de Beta Skin Tech, tu asesora virtual de skincare. ¿En qué puedo ayudarte hoy?`;
+      // VERSIÓN A: Cliente recurrente con historial de compras
+      if (customerData && customerData.ordersCount > 0) {
+        const firstName = customerData.firstName;
+
+        // Extraer último producto comprado si existe
+        const lastOrder = customerData.recentOrders?.[0];
+        const lastProduct = lastOrder?.items?.[0]?.title || "productos Beta";
+
+        greeting = `¡Hola ${firstName}! Qué bueno verte de nuevo. Vi que compraste ${lastProduct}, ¿cómo te está funcionando? Cuéntame si necesitas algo más para tu rutina.`;
+      }
+      // VERSIÓN B: Cliente nuevo con nombre (Shopify o localStorage)
+      else if (customerData?.firstName || userName) {
+        const name = customerData?.firstName || userName;
+        greeting = `¡Hola ${name}! Soy Clara, encantada de conocerte. Soy tu asesora de skincare aquí en Beta. ¿Tenés alguna preocupación con tu piel que querés resolver? Podemos armar la rutina perfecta para vos.`;
+      }
+      // VERSIÓN C: Primera vez sin datos
+      else {
+        greeting = `¡Hola! Soy Clara, tu asesora personal de skincare en Beta. Contame, ¿hay algo específico de tu piel que te preocupa o querés mejorar? Estoy acá para ayudarte a encontrar los productos ideales.`;
+      }
 
       // Send initial greeting immediately when stream is ready
       try {
@@ -73,7 +93,7 @@ export const useStreamingAvatarSession = () => {
           text: greeting,
           taskType: TaskType.REPEAT, // REPEAT = only TTS, no LLM processing
         });
-        console.log("✅ Initial greeting sent:", greeting);
+        console.log("✅ Dynamic greeting sent:", greeting);
       } catch (error) {
         console.error("Failed to send initial greeting:", error);
       }
@@ -138,9 +158,26 @@ export const useStreamingAvatarSession = () => {
         setIsUserTalking(false);
       });
       avatarRef.current.on(StreamingEvents.AVATAR_START_TALKING, () => {
+        const now = Date.now();
+        timingRef.current.avatarStartTime = now;
+
+        // Only log latency if we have a previous user message (not greeting)
+        if (timingRef.current.userEndTime > 0) {
+          const llmLatency = now - timingRef.current.userEndTime;
+          console.log('⏱️ AVATAR_START_TALKING');
+          console.log(`⏱️ LLM Processing Latency: ${llmLatency}ms`);
+        } else {
+          console.log('⏱️ AVATAR_START_TALKING (initial greeting)');
+        }
+
         setIsAvatarTalking(true);
       });
       avatarRef.current.on(StreamingEvents.AVATAR_STOP_TALKING, () => {
+        const now = Date.now();
+        const ttsDuration = now - timingRef.current.avatarStartTime;
+        console.log('⏱️ AVATAR_STOP_TALKING');
+        console.log(`⏱️ TTS Duration: ${ttsDuration}ms`);
+        console.log(`⏱️ Total Response Time: ${now - timingRef.current.userEndTime}ms`);
         setIsAvatarTalking(false);
       });
       avatarRef.current.on(
@@ -151,7 +188,12 @@ export const useStreamingAvatarSession = () => {
         StreamingEvents.AVATAR_TALKING_MESSAGE,
         handleStreamingTalkingMessage,
       );
-      avatarRef.current.on(StreamingEvents.USER_END_MESSAGE, handleEndMessage);
+      avatarRef.current.on(StreamingEvents.USER_END_MESSAGE, () => {
+        const now = Date.now();
+        timingRef.current.userEndTime = now;
+        console.log('⏱️ USER_END_MESSAGE - waiting for avatar response...');
+        handleEndMessage();
+      });
       avatarRef.current.on(
         StreamingEvents.AVATAR_END_MESSAGE,
         handleEndMessage,

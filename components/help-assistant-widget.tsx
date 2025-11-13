@@ -141,23 +141,19 @@ function ClaraWidgetMobile() {
     try {
       setIsVoiceMode(isVoiceChat);
 
-      // FIX #2: Request microphone permissions BEFORE starting avatar session
-      // This prevents the issue where accepting permissions during session causes audio failure
+      // Request microphone permissions BEFORE starting avatar session
+      // Safari doesn't support navigator.permissions.query for microphone
+      // Direct getUserMedia approach works on all browsers
       if (isVoiceChat) {
         try {
-          // Check current permission state
-          const permissionStatus = await navigator.permissions.query({ name: 'microphone' as PermissionName });
-
-          if (permissionStatus.state === 'prompt') {
-            // Permission not yet granted, request it now
-            const tempStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-            // Immediately release the stream after getting permission
-            tempStream.getTracks().forEach(track => track.stop());
-            console.log("Microphone permission granted before session start");
-          }
+          // Request microphone permission directly (works on Chrome, Safari, Firefox)
+          const tempStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+          // Immediately release the stream after getting permission
+          tempStream.getTracks().forEach(track => track.stop());
+          console.log("✅ Microphone permission granted before session start");
         } catch (permError) {
-          console.error("Microphone permission denied:", permError);
-          // User denied permission, cannot proceed with voice chat
+          console.error("❌ Microphone permission denied:", permError);
+          // User denied permission or browser blocked, cannot proceed with voice chat
           alert("Necesitas conceder permiso al micrófono para usar la llamada de voz");
           return;
         }

@@ -9,14 +9,21 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "User text is required" }, { status: 400 })
     }
 
-    // Generar respuesta con memoria conversacional
-    // Si no hay sessionId, la función genera uno nuevo automáticamente
-    const botResponse = await generateResponseWithSession(userText, sessionId || `heygen_${Date.now()}`)
+    // Generar sessionId UNA SOLA VEZ con método más seguro
+    // Usar crypto.randomUUID si está disponible (Node 16+), fallback a Date.now + random
+    const finalSessionId = sessionId || (
+      typeof crypto !== 'undefined' && crypto.randomUUID
+        ? `heygen_${crypto.randomUUID()}`
+        : `heygen_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+    )
+
+    // Generar respuesta con memoria conversacional usando el MISMO sessionId
+    const botResponse = await generateResponseWithSession(userText, finalSessionId)
 
     return NextResponse.json({
       success: true,
       botResponse,
-      sessionId: sessionId || `heygen_${Date.now()}`, // Devolver sessionId para mantener contexto
+      sessionId: finalSessionId, // Devolver el MISMO sessionId usado
     })
   } catch (error) {
     console.error("Voice chat avatar API error:", error)

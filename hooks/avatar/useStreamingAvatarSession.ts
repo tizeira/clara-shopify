@@ -102,18 +102,37 @@ export const useStreamingAvatarSession = () => {
   );
 
   const stop = useCallback(async () => {
-    avatarRef.current?.off(StreamingEvents.STREAM_READY, handleStreamReady);
-    avatarRef.current?.off(StreamingEvents.STREAM_DISCONNECTED, stop);
+    // Remove ALL event listeners to prevent memory leaks
+    // For handlers with inline functions, we can't remove them individually
+    // But stopAvatar() + clearing the ref will clean up SDK resources
+    if (avatarRef.current) {
+      avatarRef.current.off(StreamingEvents.STREAM_READY, handleStreamReady);
+      avatarRef.current.off(StreamingEvents.STREAM_DISCONNECTED, stop);
+      avatarRef.current.off(StreamingEvents.USER_TALKING_MESSAGE, handleUserTalkingMessage);
+      avatarRef.current.off(StreamingEvents.AVATAR_TALKING_MESSAGE, handleStreamingTalkingMessage);
+      avatarRef.current.off(StreamingEvents.AVATAR_END_MESSAGE, handleEndMessage);
+
+      // Note: Inline handlers (CONNECTION_QUALITY_CHANGED, USER_START, USER_STOP,
+      // AVATAR_START_TALKING, AVATAR_STOP_TALKING, USER_END_MESSAGE) can't be
+      // individually removed without refactoring. However, stopAvatar() will clean
+      // up the SDK instance and release these handlers.
+    }
+
     clearMessages();
     stopVoiceChat();
     setIsListening(false);
     setIsUserTalking(false);
     setIsAvatarTalking(false);
     setStream(null);
+
+    // stopAvatar() destroys the SDK instance, releasing all remaining event listeners
     await avatarRef.current?.stopAvatar();
     setSessionState(StreamingAvatarSessionState.INACTIVE);
   }, [
     handleStreamReady,
+    handleUserTalkingMessage,
+    handleStreamingTalkingMessage,
+    handleEndMessage,
     setSessionState,
     setStream,
     avatarRef,

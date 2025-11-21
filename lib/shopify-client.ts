@@ -68,6 +68,9 @@ export interface ShopifyCustomer {
   email: string;
   ordersCount: number;
   orders: ShopifyCustomerOrder[];
+  // Metafields personalizados
+  skinType?: 'Seca' | 'Grasa' | 'Mixta' | 'Sensible' | 'Normal';
+  skinConcerns?: string[];
 }
 
 /**
@@ -78,6 +81,8 @@ export interface ClaraCustomerData {
   lastName: string;
   email: string;
   ordersCount: number;
+  skinType?: 'Seca' | 'Grasa' | 'Mixta' | 'Sensible' | 'Normal';
+  skinConcerns?: string[];
   recentOrders: Array<{
     name: string;
     date: string;
@@ -109,6 +114,15 @@ export async function fetchShopifyCustomer(
         lastName
         email
         numberOfOrders
+        metafields(first: 10, namespace: "beta_skincare") {
+          edges {
+            node {
+              key
+              value
+              type
+            }
+          }
+        }
         orders(first: 10, reverse: true) {
           edges {
             node {
@@ -174,6 +188,23 @@ export async function fetchShopifyCustomer(
       return null;
     }
 
+    // Extract metafields
+    const metafields = customer.metafields?.edges || [];
+    const metafieldsMap: Record<string, any> = {};
+
+    metafields.forEach((edge: any) => {
+      const key = edge.node.key;
+      const value = edge.node.value;
+      const type = edge.node.type;
+
+      // Parse based on type
+      if (type === 'list.single_line_text_field') {
+        metafieldsMap[key] = JSON.parse(value);
+      } else {
+        metafieldsMap[key] = value;
+      }
+    });
+
     // Transformar respuesta de GraphQL a formato simplificado
     return {
       id: customer.id.replace('gid://shopify/Customer/', ''),
@@ -181,6 +212,9 @@ export async function fetchShopifyCustomer(
       lastName: customer.lastName || '',
       email: customer.email || '',
       ordersCount: customer.numberOfOrders || 0,
+      // Metafields
+      skinType: metafieldsMap['skin_type'] as any,
+      skinConcerns: metafieldsMap['skin_concerns'],
       orders: customer.orders.edges.map((edge: any) => ({
         name: edge.node.name,
         createdAt: edge.node.createdAt,
@@ -217,6 +251,8 @@ export function formatCustomerForClara(customer: ShopifyCustomer): ClaraCustomer
     lastName: customer.lastName,
     email: customer.email,
     ordersCount: customer.ordersCount,
+    skinType: customer.skinType,
+    skinConcerns: customer.skinConcerns,
     recentOrders: customer.orders.slice(0, 5).map(order => ({
       name: order.name,
       date: new Date(order.createdAt).toLocaleDateString('es-MX', {
@@ -260,12 +296,30 @@ export function generateKnowledgeBaseContext(
     prompt += `\n\n---INFORMACIÓN DEL CLIENTE ACTUAL---\n`;
     prompt += `Nombre: ${customerData.firstName} ${customerData.lastName}\n`;
     prompt += `Email: ${customerData.email}\n`;
-    prompt += `Total de compras: ${customerData.ordersCount}\n\n`;
-    prompt += `Historial de compras recientes:\n${ordersText}\n\n`;
+    prompt += `Total de compras: ${customerData.ordersCount}\n`;
+
+    // Skin type y concerns (metafields)
+    if (customerData.skinType) {
+      prompt += `Tipo de Piel: ${customerData.skinType}\n`;
+      prompt += `INSTRUCCIÓN: Considera su tipo de piel ${customerData.skinType} en TODAS las recomendaciones.\n`;
+    }
+
+    if (customerData.skinConcerns && customerData.skinConcerns.length > 0) {
+      prompt += `Preocupaciones: ${customerData.skinConcerns.join(', ')}\n`;
+      prompt += `INSTRUCCIÓN: Enfócate en productos que aborden estas preocupaciones específicas.\n`;
+    }
+
+    prompt += `\nHistorial de compras recientes:\n${ordersText}\n\n`;
     prompt += `INSTRUCCIONES ADICIONALES:\n`;
     prompt += `- Saluda al cliente por su nombre de forma natural y amigable\n`;
+
+    // Si es cliente recurrente
+    if (customerData.ordersCount > 0) {
+      prompt += `- Cliente recurrente: menciona cómo le ha ido con productos previos\n`;
+    }
+
     prompt += `- Menciona sus compras previas cuando sea relevante para la conversación\n`;
-    prompt += `- Haz recomendaciones personalizadas basadas en su historial\n`;
+    prompt += `- Haz recomendaciones personalizadas basadas en su historial y tipo de piel\n`;
     prompt += `- Si pregunta por productos que ya compró, reconócelo y sugiere complementos\n`;
   } else if (userName) {
     // Caso localStorage: Solo nombre

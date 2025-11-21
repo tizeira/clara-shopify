@@ -14,36 +14,54 @@ import { AvatarVideo } from "@/components/avatar/AvatarVideo"
 import { VoiceInterface } from "@/components/avatar/VoiceInterface"
 import { AvatarQuality, VoiceEmotion, STTProvider, VoiceChatTransport, StartAvatarRequest, StreamingEvents, ElevenLabsModel } from "@heygen/streaming-avatar"
 import { useMemoizedFn, useUnmount } from "ahooks"
-import { ClaraCustomerData } from "@/lib/shopify-client"
+import { ClaraCustomerData, generateKnowledgeBaseContext } from "@/lib/shopify-client"
 
 // Avatar configuration by screen size
 // Uses environment variables from Vercel, with local fallbacks
 // NEXT_PUBLIC_HEYGEN_AVATAR_ID = Mobile avatar (vertical/portrait format)
 // NEXT_PUBLIC_HEYGEN_DESKTOP_AVATAR_ID = Desktop avatar (horizontal/landscape format)
-const getResponsiveAvatarConfig = (isDesktop: boolean): StartAvatarRequest => ({
-  quality: AvatarQuality.Medium, // CAMBIO 1: Medium quality (1000kbps @ 480p) for better clarity
-  avatarName: isDesktop
-    ? (process.env.NEXT_PUBLIC_HEYGEN_DESKTOP_AVATAR_ID || process.env.NEXT_PUBLIC_HEYGEN_AVATAR_ID || "Alessandra_Chair_Sitting_public")
-    : (process.env.NEXT_PUBLIC_HEYGEN_AVATAR_ID || "Alessandra_CasualLook_public"),
-  knowledgeId: process.env.NEXT_PUBLIC_HEYGEN_KNOWLEDGE_ID || "588f6e52f25e4f228666c0c3d799860f",
-  voice: {
-    voiceId: process.env.NEXT_PUBLIC_HEYGEN_VOICE_ID || "1e080de3d73e4225a7454797a848bffe",
-    rate: 1,
-    emotion: VoiceEmotion.SERIOUS,
-    model: ElevenLabsModel.eleven_flash_v2_5, // CAMBIO 2: Fast model for reduced latency
-    elevenlabsSettings: { // CAMBIO 3: Optimized audio quality settings
-      stability: 0.8, // Higher stability for consistent voice
-      similarity_boost: 0.85, // Enhanced voice similarity and clarity
-      use_speaker_boost: true, // Boost speaker clarity
+const getResponsiveAvatarConfig = (
+  isDesktop: boolean,
+  customerData?: ClaraCustomerData | null,
+  userName?: string | null
+): StartAvatarRequest => {
+  // Build personalized knowledge base if we have customer data
+  const knowledgeBase = generateKnowledgeBaseContext(customerData || null, userName || undefined);
+
+  console.log('🎯 Avatar config:', {
+    hasCustomerData: !!customerData,
+    hasUserName: !!userName,
+    firstName: customerData?.firstName,
+    skinType: customerData?.skinType,
+    usingPersonalizedPrompt: !!(customerData || userName)
+  });
+
+  return {
+    quality: AvatarQuality.Medium, // CAMBIO 1: Medium quality (1000kbps @ 480p) for better clarity
+    avatarName: isDesktop
+      ? (process.env.NEXT_PUBLIC_HEYGEN_DESKTOP_AVATAR_ID || process.env.NEXT_PUBLIC_HEYGEN_AVATAR_ID || "Alessandra_Chair_Sitting_public")
+      : (process.env.NEXT_PUBLIC_HEYGEN_AVATAR_ID || "Alessandra_CasualLook_public"),
+    // Use knowledgeBase (personalized) instead of knowledgeId
+    knowledgeBase: knowledgeBase,
+    voice: {
+      voiceId: process.env.NEXT_PUBLIC_HEYGEN_VOICE_ID || "1e080de3d73e4225a7454797a848bffe",
+      rate: 1,
+      emotion: VoiceEmotion.SERIOUS,
+      model: ElevenLabsModel.eleven_flash_v2_5, // CAMBIO 2: Fast model for reduced latency
+      elevenlabsSettings: { // CAMBIO 3: Optimized audio quality settings
+        stability: 0.8, // Higher stability for consistent voice
+        similarity_boost: 0.85, // Enhanced voice similarity and clarity
+        use_speaker_boost: true, // Boost speaker clarity
+      },
     },
-  },
-  language: "es",
-  voiceChatTransport: VoiceChatTransport.WEBSOCKET,
-  sttSettings: {
-    provider: STTProvider.DEEPGRAM,
-    confidence: 0.55,
-  },
-});
+    language: "es",
+    voiceChatTransport: VoiceChatTransport.WEBSOCKET,
+    sttSettings: {
+      provider: STTProvider.DEEPGRAM,
+      confidence: 0.55,
+    },
+  };
+};
 
 // Hook to detect screen size
 const useScreenSize = () => {
@@ -112,7 +130,7 @@ const useFixedHeight = () => {
 function ClaraWidgetMobile() {
   const { initAvatar, startAvatar, stopAvatar, sessionState, stream } = useStreamingAvatarSession();
   const { startVoiceChat } = useVoiceChat();
-  const { isVoiceChatActive, isUserTalking, isAvatarTalking, isMuted } = useStreamingAvatarContext();
+  const { isVoiceChatActive, isUserTalking, isAvatarTalking, isMuted, customerData, userName } = useStreamingAvatarContext();
   const { isDesktop } = useScreenSize();
   const { fixedHeight, isInIframe } = useFixedHeight();
 
@@ -162,8 +180,8 @@ function ClaraWidgetMobile() {
       const newToken = await fetchAccessToken();
       initAvatar(newToken);
 
-      // Use responsive avatar configuration
-      const avatarConfig = getResponsiveAvatarConfig(isDesktop);
+      // Use responsive avatar configuration with personalized data
+      const avatarConfig = getResponsiveAvatarConfig(isDesktop, customerData, userName);
       await startAvatar(avatarConfig);
 
       if (isVoiceChat) {

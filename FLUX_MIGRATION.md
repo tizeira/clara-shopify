@@ -241,7 +241,7 @@ NEXT_PUBLIC_EAGER_EOT_THRESHOLD=0.35
 ## Usage Example
 
 ```typescript
-import { DeepgramFluxSTT } from '@/lib/providers/DeepgramFluxSTT';
+import { DeepgramFluxSTT } from '@/lib/realtime-conversation/providers/stt/deepgram-flux';
 import { PROVIDER_CONFIG, AUDIO_CONFIG } from '@/config/features';
 
 // Create STT provider

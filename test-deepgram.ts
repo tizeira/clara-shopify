@@ -1,5 +1,8 @@
 /**
- * Test script for Deepgram Streaming STT
+ * ⚠️ LEGACY TEST SCRIPT - Uses deprecated Nova-2 implementation
+ *
+ * Test script for Deepgram Streaming STT (Nova-2)
+ * For new implementations, use DeepgramFluxSTT instead.
  *
  * Usage:
  * 1. Make sure NEXT_PUBLIC_DEEPGRAM_API_KEY is set in .env.local
@@ -14,7 +17,7 @@ import { resolve } from 'path';
 
 config({ path: resolve(process.cwd(), '.env.local') });
 
-import { DeepgramStreamingSTT } from './lib/realtime-conversation/providers/stt/deepgram-streaming';
+import { DeepgramStreamingSTT } from './lib/realtime-conversation/providers/stt/deepgram-streaming.legacy';
 
 async function testDeepgramSTT() {
   console.log('🧪 Starting Deepgram STT Test\n');

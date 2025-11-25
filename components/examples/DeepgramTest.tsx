@@ -1,14 +1,16 @@
 'use client';
 
 /**
- * Example component showing how to use DeepgramStreamingSTT
+ * ⚠️ LEGACY TEST COMPONENT - Uses deprecated Nova-2 implementation
  *
- * This is a simple UI to test the Deepgram provider.
- * Can be used as reference for integrating into the main app.
+ * Example component showing how to use DeepgramStreamingSTT (Nova-2)
+ * For new implementations, use DeepgramFluxSTT instead.
+ *
+ * This is kept for testing the legacy implementation only.
  */
 
 import { useState, useEffect, useRef } from 'react';
-import { DeepgramStreamingSTT } from '@/lib/realtime-conversation/providers/stt/deepgram-streaming';
+import { DeepgramStreamingSTT } from '@/lib/realtime-conversation/providers/stt/deepgram-streaming.legacy';
 
 export default function DeepgramTest() {
   const [isListening, setIsListening] = useState(false);

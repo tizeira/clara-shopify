@@ -1,5 +1,27 @@
 /**
- * Deepgram Streaming STT Provider
+ * ⚠️ DEPRECATED - DO NOT USE IN NEW CODE ⚠️
+ *
+ * This file is kept for historical reference only.
+ * Use `deepgram-flux.ts` instead for all new implementations.
+ *
+ * Migration guide: See FLUX_MIGRATION.md
+ *
+ * Reasons for deprecation:
+ * - Slower turn detection (~500ms vs ~260ms with Flux)
+ * - Requires custom VAD implementation
+ * - More complex configuration (5+ parameters)
+ * - Uses older Nova-2 API (v1)
+ *
+ * Flux v2 benefits:
+ * - Native turn detection (StartOfTurn, EndOfTurn events)
+ * - Built-in barge-in support
+ * - Simpler configuration (2-3 parameters)
+ * - Lower latency (~260ms turn detection)
+ * - Optional EagerEndOfTurn for ultra-low latency
+ *
+ * ---
+ *
+ * Deepgram Streaming STT Provider (Nova-2)
  *
  * Implements real-time speech-to-text using Deepgram Nova-2 model
  * configured for Latin American Spanish (es-419, closest to Chilean).

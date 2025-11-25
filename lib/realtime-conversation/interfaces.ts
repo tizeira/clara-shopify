@@ -6,10 +6,22 @@
  */
 
 /**
+ * Flux Turn Event Types
+ * Events emitted by Deepgram Flux v2 API
+ */
+export interface FluxTurnEvent {
+  type: 'StartOfTurn' | 'EagerEndOfTurn' | 'TurnResumed' | 'EndOfTurn' | 'Update';
+  transcript?: string;
+  confidence?: number;
+  timestamp: number;
+}
+
+/**
  * Speech-to-Text Provider Interface
  *
  * Implementations:
- * - DeepgramStreamingSTT (primary - low latency, VAD)
+ * - DeepgramFluxSTT (primary - Flux v2 with native turn detection)
+ * - DeepgramStreamingSTT (fallback - Nova-2 with custom VAD)
  * - WhisperSTT (fallback - batch processing)
  */
 export interface STTProvider {
@@ -24,6 +36,12 @@ export interface STTProvider {
    * @returns Promise that resolves when listening stops
    */
   stopListening(): Promise<void>;
+
+  /**
+   * Send audio chunk to STT provider
+   * @param audioChunk Raw audio data (linear16 PCM)
+   */
+  sendAudio?(audioChunk: ArrayBuffer): void;
 
   /**
    * Register callback for final transcripts (complete utterances)
@@ -64,6 +82,28 @@ export interface STTProvider {
    * Cleanup and disconnect
    */
   cleanup(): Promise<void>;
+
+  // ========== Flux-specific callbacks (optional) ==========
+
+  /**
+   * Register callback for EagerEndOfTurn (medium confidence end-of-turn)
+   * Used for low-latency mode - start preparing response before final confirmation
+   * @param callback Function called with partial transcript
+   */
+  onEagerEndOfTurn?(callback: (text: string) => void): void;
+
+  /**
+   * Register callback for TurnResumed (user continued speaking after EagerEndOfTurn)
+   * Used to cancel draft responses prepared during eager mode
+   * @param callback Function called when user resumes speaking
+   */
+  onTurnResumed?(callback: () => void): void;
+
+  /**
+   * Register callback for all Flux turn events (for debugging/monitoring)
+   * @param callback Function called with turn event details
+   */
+  onTurnEvent?(callback: (event: FluxTurnEvent) => void): void;
 }
 
 /**

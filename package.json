@@ -10,6 +10,7 @@
     "type-check": "tsc --noEmit"
   },
   "dependencies": {
+    "@deepgram/sdk": "^3.9.0",
     "@heygen/streaming-avatar": "^2.0.13",
     "@radix-ui/react-slot": "latest",
     "ahooks": "^3.8.4",

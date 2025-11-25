@@ -69,8 +69,8 @@ export const CONVERSATION_FEATURES = {
  * Timing configuration (in milliseconds)
  */
 export const CONVERSATION_TIMING = {
-  // Deepgram endpointing delay (silence detection)
-  ENDPOINTING_DELAY_MS: parseInt(process.env.NEXT_PUBLIC_ENDPOINTING_DELAY_MS || '300', 10),
+  // Deepgram Flux end-of-turn timeout (silence detection)
+  EOT_TIMEOUT_MS: parseInt(process.env.NEXT_PUBLIC_EOT_TIMEOUT_MS || '6000', 10),
 
   // Barge-in detection debounce
   BARGE_IN_DEBOUNCE_MS: parseInt(process.env.NEXT_PUBLIC_BARGE_IN_DEBOUNCE_MS || '100', 10),
@@ -89,19 +89,93 @@ export const CONVERSATION_TIMING = {
 } as const;
 
 /**
+ * Audio configuration
+ */
+export const AUDIO_CONFIG = {
+  // Audio format for Deepgram Flux
+  encoding: 'linear16' as const,
+  sampleRate: 16000, // 16kHz is optimal for voice
+  channels: 1, // Mono
+
+  // Chunk size for streaming (80ms chunks = ~2560 bytes at 16kHz linear16)
+  chunkSizeMs: 80,
+  chunkSizeBytes: 2560, // 16000 Hz * 2 bytes/sample * 0.08s = 2560 bytes
+} as const;
+
+/**
+ * Deepgram Flux Presets
+ * Choose based on use case requirements
+ */
+export const FLUX_PRESETS = {
+  // Simple mode (recommended for starting) - EndOfTurn only
+  simple: {
+    eotThreshold: 0.7,
+    eotTimeoutMs: 5000,
+    eagerEotThreshold: undefined, // Disabled
+  },
+
+  // Low-latency mode (Clara customer service)
+  // Enables EagerEndOfTurn for faster responses
+  lowLatency: {
+    eotThreshold: 0.7,
+    eotTimeoutMs: 6000,
+    eagerEotThreshold: 0.4, // Enable eager mode
+  },
+
+  // High-reliability mode (medical/legal consultations)
+  // Higher thresholds for more certainty
+  highReliability: {
+    eotThreshold: 0.85,
+    eotTimeoutMs: 8000,
+    eagerEotThreshold: undefined,
+  },
+
+  // Complex pipeline mode (RAG + tool calling)
+  // Balanced for complex processing
+  complex: {
+    eotThreshold: 0.85,
+    eotTimeoutMs: 7000,
+    eagerEotThreshold: 0.4,
+  },
+} as const;
+
+/**
+ * Active Flux preset
+ * Set via NEXT_PUBLIC_FLUX_PRESET env var
+ * Options: 'simple' | 'lowLatency' | 'highReliability' | 'complex'
+ */
+const activeFluxPreset = (process.env.NEXT_PUBLIC_FLUX_PRESET || 'simple') as keyof typeof FLUX_PRESETS;
+const fluxConfig = FLUX_PRESETS[activeFluxPreset] || FLUX_PRESETS.simple;
+
+/**
  * Provider configuration
  */
 export const PROVIDER_CONFIG = {
   /**
-   * Deepgram STT
+   * Deepgram Flux STT (v2 API)
+   *
+   * Migration from Nova-2:
+   * - ✅ Native turn detection (eliminates custom VAD)
+   * - ✅ Built-in barge-in support
+   * - ✅ ~260ms turn detection latency
+   * - ✅ Configurable confidence thresholds
    */
   deepgram: {
-    model: 'nova-2',
+    // Model selection
+    model: 'flux-general-en' as const, // Use flux-general-es for Spanish
     language: 'es-419', // Latin American Spanish (closest to Chilean)
-    smart_format: true,
-    interim_results: CONVERSATION_FEATURES.ENABLE_INTERIM_TRANSCRIPTS,
-    endpointing: CONVERSATION_TIMING.ENDPOINTING_DELAY_MS,
-    vad_events: CONVERSATION_FEATURES.ENABLE_BARGE_IN, // Voice Activity Detection for barge-in
+
+    // Audio configuration
+    encoding: AUDIO_CONFIG.encoding,
+    sampleRate: AUDIO_CONFIG.sampleRate,
+
+    // Flux-specific settings (from active preset)
+    eotThreshold: fluxConfig.eotThreshold, // EndOfTurn confidence (0.5-0.9)
+    eotTimeoutMs: fluxConfig.eotTimeoutMs, // Silence timeout (500-10000ms)
+    eagerEotThreshold: fluxConfig.eagerEotThreshold, // EagerEndOfTurn (optional, enables low-latency)
+
+    // Debugging
+    logEvents: process.env.NODE_ENV === 'development' || process.env.NEXT_PUBLIC_LOG_FLUX_EVENTS === 'true',
   },
 
   /**
@@ -187,9 +261,17 @@ export function logConfiguration(): void {
     barge_in: CONVERSATION_FEATURES.ENABLE_BARGE_IN,
     auto_fallback: CONVERSATION_FEATURES.ENABLE_AUTO_FALLBACK,
   });
-  console.log('Timing:', {
-    endpointing_ms: CONVERSATION_TIMING.ENDPOINTING_DELAY_MS,
-    barge_in_debounce_ms: CONVERSATION_TIMING.BARGE_IN_DEBOUNCE_MS,
+  console.log('Flux Settings:', {
+    preset: activeFluxPreset,
+    eot_threshold: PROVIDER_CONFIG.deepgram.eotThreshold,
+    eot_timeout_ms: PROVIDER_CONFIG.deepgram.eotTimeoutMs,
+    eager_mode: PROVIDER_CONFIG.deepgram.eagerEotThreshold !== undefined,
+    eager_threshold: PROVIDER_CONFIG.deepgram.eagerEotThreshold || 'disabled',
+  });
+  console.log('Audio:', {
+    encoding: AUDIO_CONFIG.encoding,
+    sample_rate: AUDIO_CONFIG.sampleRate,
+    chunk_size_ms: AUDIO_CONFIG.chunkSizeMs,
   });
   console.log('Providers:', {
     stt: PROVIDER_CONFIG.deepgram.model,

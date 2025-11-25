@@ -25,6 +25,19 @@ This is a Next.js 14 app that creates a Clara help assistant widget with glassmo
   - `context.tsx` - Global state management with React Context
   - `useStreamingAvatarSession.ts` - Avatar session lifecycle management with memory leak prevention
   - `useVoiceChat.ts` - Voice chat functionality and controls
+- **Real-time Conversation System**: `lib/realtime-conversation/` - Modular conversation pipeline
+  - `interfaces.ts` - Type-safe interfaces for STT, LLM, and Avatar providers
+  - `state-machine.ts` - Conversation state management with barge-in support
+- **Providers**: `lib/providers/` - Pluggable provider implementations
+  - `DeepgramFluxSTT.ts` - Deepgram Flux v2 STT provider with native turn detection
+- **Personalization System**: `lib/personalization/` - Shopify-based personalization
+  - `types.ts` - Customer data interfaces
+  - `shopify-fetcher.ts` - 24-hour cache system for customer data
+  - `prompt-template.ts` - Template engine for personalized prompts
+- **Configuration**: `config/features.ts` - Feature flags and provider configuration
+  - Flux presets: simple, lowLatency, highReliability, complex
+  - Audio configuration for optimal streaming
+  - Timing and retry settings
 
 ### API Routes
 
@@ -44,8 +57,14 @@ This is a Next.js 14 app that creates a Clara help assistant widget with glassmo
   - HeyGen StreamingAvatar SDK v2.0.13
   - Real-time video streaming with WebRTC
   - Spanish language support
-  - Voice chat with Deepgram STT integration
+  - Voice chat with Deepgram Flux v2 (native turn detection)
   - Knowledge base integration (Clara skincare)
+- **Real-time Conversation Pipeline**:
+  - Deepgram Flux STT with ~260ms turn detection latency
+  - Native barge-in support (no custom VAD needed)
+  - Pluggable architecture (STT, LLM, Avatar providers)
+  - Configurable Flux presets for different use cases
+  - Type-safe event system with state machine
 - **Cross-Browser Compatibility**:
   - Full Safari iOS and desktop support
   - Chrome desktop support
@@ -95,6 +114,12 @@ Required environment variables (see `.env.example`):
 
 **Additional Services:**
 - `OPENAI_API_KEY` - OpenAI API key for additional LLM processing
+
+**Deepgram Flux STT (Required for real-time conversation):**
+- `DEEPGRAM_API_KEY` - Deepgram API key for Flux v2 STT
+- `NEXT_PUBLIC_FLUX_PRESET` - Flux configuration preset: 'simple' (default) | 'lowLatency' | 'highReliability' | 'complex'
+- `NEXT_PUBLIC_ENABLE_STREAMING_STT` - Enable Deepgram Flux streaming (true/false)
+- `NEXT_PUBLIC_LOG_FLUX_EVENTS` - Log Flux turn events for debugging (true/false)
 
 **Shopify Integration (Optional):**
 - `SHOPIFY_HMAC_SECRET` - Secret for HMAC validation (generate with: `openssl rand -hex 32`)

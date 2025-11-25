@@ -10,7 +10,9 @@
       "WebFetch(domain:docs.heygen.com)",
       "Bash(curl -s \"https://raw.githubusercontent.com/HeyGen-Official/StreamingAvatarSDK/main/README.md\")",
       "WebFetch(domain:shopify.dev)",
-      "WebSearch"
+      "WebSearch",
+      "mcp__sequential-thinking__sequentialthinking",
+      "Bash(git checkout:*)"
     ],
     "deny": [],
     "ask": []

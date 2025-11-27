@@ -1,5 +1,18 @@
 /**
+ * @deprecated This file is deprecated. Use buildPersonalizedPrompt from lib/shopify-client.ts instead.
+ * This file will be removed in a future version.
+ *
+ * Migration path:
+ * - CLARA_BASE_PROMPT → Use from lib/shopify-client.ts
+ * - buildPersonalizedPrompt → Use from lib/shopify-client.ts (different signature)
+ * - PersonalizationData → Use from lib/shopify-client.ts
+ *
+ * This file contains the Chilean Spanish prompt that has been migrated to shopify-client.ts
+ */
+
+/**
  * Clara's Personalized Prompt Template System
+ * @deprecated Use lib/shopify-client.ts instead
  */
 
 import type { ShopifyCustomerData, PromptVariables, ClaraPromptConfig } from './types';
@@ -154,7 +167,7 @@ export function validateCustomerData(data: ShopifyCustomerData | null): {
   return {
     isValid: missingFields.length === 0,
     missingFields,
-    hasPersonalization: !!data.skinType || (data.recentProducts && data.recentProducts.length > 0),
+    hasPersonalization: !!data.skinType || (data.recentProducts?.length ?? 0) > 0,
   };
 }
 

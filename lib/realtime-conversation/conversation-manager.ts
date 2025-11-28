@@ -172,7 +172,7 @@ export class ConversationManager {
       console.log(`🎙️ MediaRecorder created with mimeType: ${mimeType}`);
 
       // Setup data handler - send chunks to STT
-      this.mediaRecorder.ondataavailable = (event: BlobDataAvailableEvent) => {
+      this.mediaRecorder.ondataavailable = (event: BlobEvent) => {
         if (event.data.size > 0 && this.config.sttProvider.sendAudio) {
           // Convert Blob to ArrayBuffer and send to STT
           event.data.arrayBuffer().then((buffer) => {

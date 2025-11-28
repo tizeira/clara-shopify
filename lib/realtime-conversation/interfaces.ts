@@ -8,6 +8,9 @@
 /**
  * Flux Turn Event Types
  * Events emitted by Deepgram Flux v2 API
+ *
+ * ⚠️ NOTE: These events are Flux-specific (English only)
+ * For multilingual support (Spanish), use Nova-3 which uses standard events
  */
 export interface FluxTurnEvent {
   type: 'StartOfTurn' | 'EagerEndOfTurn' | 'TurnResumed' | 'EndOfTurn' | 'Update';
@@ -20,9 +23,13 @@ export interface FluxTurnEvent {
  * Speech-to-Text Provider Interface
  *
  * Implementations:
- * - DeepgramFluxSTT (primary - Flux v2 with native turn detection)
- * - DeepgramStreamingSTT (fallback - Nova-2 with custom VAD)
- * - WhisperSTT (fallback - batch processing)
+ * - DeepgramNova3STT (PRIMARY - Nova-3 with Spanish support, ~500ms latency)
+ * - DeepgramFluxSTT (ENGLISH ONLY - Flux v2 with native turn detection, ~260ms latency)
+ * - DeepgramStreamingSTT (DEPRECATED - Nova-2 with custom VAD)
+ * - WhisperSTT (DEPRECATED - batch processing)
+ *
+ * ✅ Recommended: Use DeepgramNova3STT for production (supports Spanish es-419)
+ * ⚠️ Note: DeepgramFluxSTT only supports English (flux-general-en)
  */
 export interface STTProvider {
   /**
@@ -84,6 +91,8 @@ export interface STTProvider {
   cleanup(): Promise<void>;
 
   // ========== Flux-specific callbacks (optional) ==========
+  // ⚠️ Only implemented by DeepgramFluxSTT
+  // Nova-3 and other providers don't need these (use standard callbacks above)
 
   /**
    * Register callback for EagerEndOfTurn (medium confidence end-of-turn)
@@ -199,6 +208,11 @@ export interface AvatarProvider {
    * Get video stream for rendering
    */
   getStream(): MediaStream | null;
+
+  /**
+   * Cleanup and disconnect
+   */
+  cleanup(): Promise<void>;
 }
 
 /**

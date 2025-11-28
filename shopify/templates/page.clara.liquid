@@ -108,7 +108,8 @@
     {%- liquid
       # Get HMAC secret from store metafield
       # This must match SHOPIFY_HMAC_SECRET in Vercel environment variables
-      assign hmac_secret = shop.metafields.clara.hmac_secret
+      # Using custom.hmac_secret (Shopify default namespace for store metafields)
+      assign hmac_secret = shop.metafields.custom.hmac_secret
 
       # Check if customer is logged in
       if customer

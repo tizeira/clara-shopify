@@ -1,8 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyCustomerToken, isValidCustomerId } from '@/lib/shopify-security';
-import { fetchShopifyCustomer, formatCustomerForClara } from '@/lib/shopify-client';
+import { fetchShopifyCustomer, fetchShopifyCustomerBasic, formatCustomerForClara } from '@/lib/shopify-client';
 
 export const runtime = 'nodejs'; // Necesario para crypto y Node APIs
+
+// Feature flag para usar versión Basic plan (sin PII)
+// Cambiar a true si estás en Shopify Basic plan
+const USE_BASIC_PLAN_QUERY = true;
 
 /**
  * Interface para el body del request
@@ -74,7 +78,13 @@ export async function POST(request: NextRequest) {
     // Obtener datos del cliente desde Shopify
     let customer;
     try {
-      customer = await fetchShopifyCustomer(customer_id);
+      // Usar versión Basic si estamos en Basic plan (sin acceso a PII)
+      if (USE_BASIC_PLAN_QUERY) {
+        console.log(`⚠️ Using Basic plan query (no PII) for customer ${customer_id}`);
+        customer = await fetchShopifyCustomerBasic(customer_id);
+      } else {
+        customer = await fetchShopifyCustomer(customer_id);
+      }
     } catch (error) {
       console.error('Shopify API error:', error);
       return NextResponse.json(
@@ -99,14 +109,21 @@ export async function POST(request: NextRequest) {
     }
 
     // Formatear para Clara
-    const claraCustomer = formatCustomerForClara(customer);
+    const claraCustomer = formatCustomerForClara(customer as any);
 
     // Log exitoso (sin datos sensibles)
-    console.log(`✅ Customer data fetched successfully: ${customer.firstName} ${customer.lastName} (ID: ${customer_id})`);
+    const name = USE_BASIC_PLAN_QUERY
+      ? `Customer ${customer_id}`
+      : `${customer.firstName} ${customer.lastName}`;
+    console.log(`✅ Customer data fetched successfully: ${name}`);
 
     return NextResponse.json({
       success: true,
-      customer: claraCustomer
+      customer: claraCustomer,
+      // Advertencia si estamos en Basic plan
+      ...(USE_BASIC_PLAN_QUERY && {
+        warning: 'Using Shopify Basic plan mode - customer names not available. See SHOPIFY_PLAN_LIMITATION.md'
+      })
     });
 
   } catch (error) {

@@ -61,3 +61,12 @@ export interface FetcherConfig {
   enableCache: boolean;
   fallbackToGeneric: boolean;
 }
+
+/**
+ * Re-export types from shopify-client for backwards compatibility
+ * These are the primary types that should be used for Shopify integration
+ */
+export type {
+  ClaraCustomerData,
+  PersonalizationData
+} from '@/lib/shopify-client';

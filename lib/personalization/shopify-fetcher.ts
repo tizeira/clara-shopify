@@ -20,8 +20,13 @@ export class ShopifyCustomerFetcher {
 
   /**
    * Get customer data with caching
+   * Requires HMAC token for secure authentication
+   *
+   * @param customerId - Shopify customer ID
+   * @param token - HMAC token for validation
+   * @returns Customer data or null
    */
-  async getCustomerData(customerId: string): Promise<ShopifyCustomerData | null> {
+  async fetchCustomerData(customerId: string, token: string): Promise<ShopifyCustomerData | null> {
     try {
       // Try cache first
       if (this.config.enableCache) {
@@ -32,9 +37,9 @@ export class ShopifyCustomerFetcher {
         }
       }
 
-      // Fetch fresh data
+      // Fetch fresh data with HMAC token
       console.log('🔄 Fetching fresh customer data for:', customerId);
-      const data = await this.fetchFromAPI(customerId);
+      const data = await this.fetchFromAPI(customerId, token);
 
       // Cache the result
       if (data && this.config.enableCache) {
@@ -59,16 +64,36 @@ export class ShopifyCustomerFetcher {
   }
 
   /**
-   * Fetch from backend API
+   * Get cached customer data (for sync access)
+   * This method only checks cache without fetching
    */
-  private async fetchFromAPI(customerId: string): Promise<ShopifyCustomerData | null> {
-    const response = await fetch(`/api/customer-data?customerId=${encodeURIComponent(customerId)}`);
+  getCachedCustomerData(customerId: string): ShopifyCustomerData | null {
+    return this.getCachedData(customerId);
+  }
+
+  /**
+   * Fetch from secure backend API with HMAC validation
+   * Uses POST /api/shopify-customer with customer_id and shopify_token
+   */
+  private async fetchFromAPI(customerId: string, token: string): Promise<ShopifyCustomerData | null> {
+    const response = await fetch('/api/shopify-customer', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        customer_id: customerId,
+        shopify_token: token,
+      }),
+    });
 
     if (!response.ok) {
-      throw new Error(`API returned ${response.status}: ${response.statusText}`);
+      const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+      throw new Error(errorData.error || `API returned ${response.status}: ${response.statusText}`);
     }
 
     const data = await response.json();
+    // /api/shopify-customer returns { success: true, customer: {...} }
     return data.customer || null;
   }
 

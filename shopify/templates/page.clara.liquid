@@ -124,8 +124,8 @@
         # This matches Node.js: crypto.createHmac('sha256', secret).update(customer_id).digest('hex')
         assign shopify_token = customer_id | hmac_sha256: hmac_secret
 
-        # Build widget URL with customer data (PREVIEW URL for testing)
-        assign widget_url = 'https://clara-shopify-git-test-fa-e7d6a9-tizeiraivan-gmailcoms-projects.vercel.app'
+        # Build widget URL with customer data (PRODUCTION)
+        assign widget_url = 'https://clara-shopify.vercel.app'
         assign widget_url = widget_url | append: '?customer_id=' | append: customer_id
         assign widget_url = widget_url | append: '&shopify_token=' | append: shopify_token
 
@@ -146,8 +146,8 @@
           assign widget_url = widget_url | append: '&orders_count=' | append: orders_count
         endif
       else
-        # Anonymous user - use generic Clara (PREVIEW URL for testing)
-        assign widget_url = 'https://clara-shopify-git-test-fa-e7d6a9-tizeiraivan-gmailcoms-projects.vercel.app'
+        # Anonymous user - use generic Clara (PRODUCTION)
+        assign widget_url = 'https://clara-shopify.vercel.app'
       endif
     -%}
 

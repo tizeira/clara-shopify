@@ -66,7 +66,7 @@ Shopify Liquid templates have full access to the `{{ customer }}` object **even 
 ```liquid
 {%- liquid
   # Get HMAC secret from store metafield
-  assign hmac_secret = shop.metafields.clara.hmac_secret
+  assign hmac_secret = shop.metafields.custom.hmac_secret
 
   # Check if customer is logged in
   if customer
@@ -160,7 +160,7 @@ const mergedData: ClaraCustomerData = {
 
 ```bash
 # Shopify HMAC secret for webhook validation AND FASE 2 Liquid integration
-# CRITICAL: This must EXACTLY match shop.metafields.clara.hmac_secret in Shopify Admin
+# CRITICAL: This must EXACTLY match shop.metafields.custom.hmac_secret in Shopify Admin
 # Generate with: openssl rand -hex 32
 # After generation, set the same value in Shopify:
 #   Admin → Settings → Custom data → Metafields → Store → clara.hmac_secret
@@ -239,7 +239,7 @@ node scripts/test-fase2-url.mjs
 
 **Storage locations (must match exactly):**
 1. **Vercel:** Environment variable `SHOPIFY_HMAC_SECRET`
-2. **Shopify:** Store metafield `shop.metafields.clara.hmac_secret`
+2. **Shopify:** Store metafield `shop.metafields.custom.hmac_secret`
 3. **Local dev:** `.env.local` file
 
 **⚠️ CRITICAL:** If these don't match, validation will fail!
@@ -319,7 +319,7 @@ SHOPIFY_HMAC_SECRET=b6e2bc0ed8256bb0c1fdce4f3422d4253dca64fcc15c17964af345f62ef1
 
 **Verification:**
 ```liquid
-{{ shop.metafields.clara.hmac_secret }}
+{{ shop.metafields.custom.hmac_secret }}
 ```
 Should output: `b6e2bc0ed8256bb0c1fdce4f3422d4253dca64fcc15c17964af345f62ef10981`
 
@@ -407,7 +407,7 @@ assign widget_url = 'https://clara-shopify.vercel.app'  # Always generic
 
 ### Production Deployment
 1. Add `SHOPIFY_HMAC_SECRET` to Vercel production environment
-2. Create Shopify metafield `shop.metafields.clara.hmac_secret`
+2. Create Shopify metafield `shop.metafields.custom.hmac_secret`
 3. Update Shopify theme with new `page.clara.liquid`
 4. Monitor console logs for data source confirmation
 5. Test with real customer accounts

@@ -56,18 +56,10 @@ npm run build
 
 ### Managing Legacy/Test Code
 
-**Files to exclude from production builds:**
-- `app/test-*` directories - Test pages for development only
-- `components/examples/` - Example components, not used in production
-- `*.legacy.ts` files - Old implementations kept for reference
-- Root-level `test-*.ts` files - Standalone test scripts
-
 **When encountering build errors in test/legacy files:**
 1. Check if file is actually used in production (`grep -r "filename" .`)
 2. If not used: Delete the file entirely (cleaner than maintaining broken code)
 3. If used: Fix the actual error
-
-**Prevention:** Consider adding to `.gitignore` or using Next.js `excludeFiles` in config.
 
 ### Debugging Strategy
 
@@ -103,9 +95,10 @@ This project uses **strict mode** TypeScript (`strict: true` in tsconfig.json):
 - `any` type should be avoided (use `unknown` if type truly unknown)
 
 **Current Status:**
-- ✅ Production code (components, lib, app) - Fully typed, builds cleanly
-- ⚠️ Real-time conversation pipeline (`lib/realtime-conversation/`) - Implemented but not active in production
+- ✅ Production code (components, lib, app) - Fully typed
 - ✅ Shopify integration (FASE 1 + FASE 2) - Complete and deployed
+- ⚠️ Real-time conversation pipeline - Implemented but NOT integrated in widget
+- ❌ Spanish STT (Nova-3) - Not implemented, blocks MVP
 
 ## Architecture Overview
 
@@ -126,16 +119,15 @@ This is a Next.js 14 app that creates a Clara help assistant widget with glassmo
   - `interfaces.ts` - Type-safe interfaces for STT, LLM, and Avatar providers
   - `state-machine.ts` - Conversation state management with barge-in support
 - **STT Providers**: `lib/realtime-conversation/providers/stt/` - Speech-to-Text providers
-  - `deepgram-nova3.ts` - **PRIMARY** - Deepgram Nova-3 with Spanish support (es-419)
-  - `deepgram-flux.ts` - LOW PRIORITY - Deepgram Flux v2 (English only, for future use)
+  - `deepgram-flux.ts` - Deepgram Flux v2 (English only)
+  - **TODO**: `deepgram-nova3.ts` needed for Spanish support (es-419)
 - **Personalization System**: `lib/personalization/` - Shopify-based personalization
   - `types.ts` - Customer data interfaces
   - `shopify-fetcher.ts` - 24-hour cache system for customer data
   - `prompt-template.ts` - Template engine for personalized prompts
 - **Configuration**: `config/features.ts` - Feature flags and provider configuration
-  - Nova-3 presets (PRIMARY): standard, lowLatency, highReliability, conversational
-  - Flux presets (English only): simple, lowLatency, highReliability, complex
-  - Audio configuration for optimal streaming (16kHz linear16 PCM)
+  - Feature flags for conversation pipeline
+  - Audio configuration (16kHz linear16 PCM)
   - Timing and retry settings
 
 ### API Routes
@@ -158,12 +150,11 @@ This is a Next.js 14 app that creates a Clara help assistant widget with glassmo
   - Spanish language support (es-419)
   - Voice chat with Deepgram Nova-3 STT (Spanish support)
   - Knowledge base integration (Clara skincare)
-- **Real-time Conversation Pipeline**:
-  - **PRIMARY**: Deepgram Nova-3 STT with Spanish support (~500ms turn detection)
-  - **FALLBACK**: Deepgram Flux STT (English only, ~260ms latency, for future use)
-  - Native barge-in support (no custom VAD needed)
-  - Pluggable architecture (STT, LLM, Avatar providers)
-  - Configurable presets for different use cases
+- **Real-time Conversation Pipeline** (Partial - not integrated in widget):
+  - Deepgram Flux STT (English only - Spanish Nova-3 needed)
+  - Claude Haiku streaming LLM
+  - HeyGen Avatar REPEAT mode
+  - Barge-in support via ConversationManager
   - Type-safe event system with state machine
 - **Cross-Browser Compatibility**:
   - Full Safari iOS and desktop support
@@ -215,14 +206,9 @@ Required environment variables (see `.env.example`):
 **Additional Services:**
 - `OPENAI_API_KEY` - OpenAI API key for additional LLM processing
 
-**Deepgram STT (Required for real-time conversation):**
-- `DEEPGRAM_API_KEY` - Deepgram API key for STT (both Nova-3 and Flux)
-- `NEXT_PUBLIC_DEEPGRAM_API_KEY` - Same API key (required for client-side test pages)
-- `NEXT_PUBLIC_NOVA3_PRESET` - **PRIMARY** Nova-3 preset: 'standard' (default) | 'lowLatency' | 'highReliability' | 'conversational'
-- `NEXT_PUBLIC_FLUX_PRESET` - **ENGLISH ONLY** Flux preset: 'simple' (default) | 'lowLatency' | 'highReliability' | 'complex'
-- `NEXT_PUBLIC_ENABLE_STREAMING_STT` - Enable Deepgram streaming STT (true/false)
-- `NEXT_PUBLIC_LOG_NOVA3_EVENTS` - Log Nova-3 events for debugging (true/false)
-- `NEXT_PUBLIC_LOG_FLUX_EVENTS` - Log Flux turn events for debugging (true/false)
+**Deepgram STT (For real-time conversation - not yet active):**
+- `DEEPGRAM_API_KEY` - Deepgram API key for STT
+- `NEXT_PUBLIC_ENABLE_STREAMING_STT` - Enable streaming STT (true/false)
 
 **Shopify Integration (Optional):**
 - `SHOPIFY_HMAC_SECRET` - Secret for HMAC validation (generate with: `openssl rand -hex 32`)
@@ -235,46 +221,20 @@ Required environment variables (see `.env.example`):
 2. **CONNECTING**: Loading state while initializing avatar
 3. **CONNECTED**: Active session with streaming video
 
-### STT Provider Implementation (Nova-3 vs Flux)
+### STT Provider Status
 
-**Current Status (2025-11-25):**
+**Current Status (2025-12-03):**
 
-**PRIMARY Provider: Deepgram Nova-3**
-- **Location**: `lib/realtime-conversation/providers/stt/deepgram-nova3.ts`
-- **Status**: Production ready with Spanish support
-- **Language**: Spanish (es-419) - Latin American Spanish
-- **Features**:
-  - UtteranceEnd events for turn detection (~500ms latency)
-  - SpeechStarted events for speech detection
-  - Interim results for real-time feedback
-  - Smart formatting for natural transcriptions
-  - Standard Deepgram events (no Flux-specific events)
-- **Configuration**: Via `NOVA3_PRESETS` in `config/features.ts`
-  - standard: 500ms endpointing (recommended)
-  - lowLatency: 300ms endpointing (faster)
-  - highReliability: 800ms endpointing (more certain)
-  - conversational: 500ms endpointing (balanced)
-- **Test Page**: `/test-nova3` - Fully functional with audio capture
-
-**FALLBACK Provider: Deepgram Flux (English Only)**
+**Implemented: Deepgram Flux (English Only)**
 - **Location**: `lib/realtime-conversation/providers/stt/deepgram-flux.ts`
-- **Status**: Low priority - For future English support only
-- **Language**: English only (flux-general-en) - NO Spanish support
-- **Limitations**:
-  - ⚠️ English only - no flux-general-es available
-  - ❌ Cannot be used for Clara (requires Spanish)
-- **Features**:
-  - Native turn detection with Flux TurnInfo events
-  - StartOfTurn, EndOfTurn, EagerEndOfTurn, TurnResumed events
-  - ~260ms turn detection latency (faster than Nova-3)
-  - Built-in barge-in detection
-- **Configuration**: Via `FLUX_PRESETS` in `config/features.ts`
-- **Test Page**: `/test-flux` - ⚠️ Incomplete (missing audio capture)
+- **Language**: English only (flux-general-en)
+- **Features**: Native turn detection, barge-in support, ~260ms latency
+- **Limitation**: Cannot be used for Clara (requires Spanish)
 
-**Decision Rationale:**
-- Nova-3 chosen as primary because Clara requires Spanish support
-- Flux maintained for potential future English features
-- Both implement same `STTProvider` interface for easy swapping
+**TODO: Deepgram Nova-3 (Spanish)**
+- **Needed for**: Clara requires Spanish support (es-419)
+- **Status**: Not yet implemented
+- **Priority**: HIGH - blocks MVP completion
 
 ### Recent Fixes and Improvements
 

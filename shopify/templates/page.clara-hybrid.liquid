@@ -1,0 +1,256 @@
+{% comment %}
+  HYBRID TEMPLATE: Debug info + Functional Clara widget
+  Combina verificación de metafields con iframe funcional
+{% endcomment %}
+
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Clara - Asesora Virtual</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #f5f5f5;
+    }
+
+    /* Debug section - collapsible */
+    .debug-section {
+      background: #fff3cd;
+      border: 2px solid #ffc107;
+      border-radius: 8px;
+      margin: 10px;
+      overflow: hidden;
+    }
+    .debug-header {
+      background: #ffc107;
+      padding: 10px 15px;
+      cursor: pointer;
+      font-weight: bold;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .debug-content {
+      padding: 15px;
+      font-family: monospace;
+      font-size: 12px;
+      display: none;
+    }
+    .debug-content.show {
+      display: block;
+    }
+    .debug-item {
+      margin: 10px 0;
+      padding: 10px;
+      background: white;
+      border-radius: 4px;
+    }
+    .debug-item strong {
+      color: #d32f2f;
+    }
+    .debug-item code {
+      background: #263238;
+      color: #AED581;
+      padding: 2px 6px;
+      border-radius: 3px;
+    }
+
+    /* Clara iframe section */
+    .clara-wrapper {
+      width: 100%;
+      height: calc(100vh - 60px);
+      position: relative;
+      background: white;
+    }
+    .clara-iframe {
+      width: 100%;
+      height: 100%;
+      border: none;
+      display: block;
+    }
+
+    /* Loading overlay */
+    .loading-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      color: white;
+      z-index: 10;
+      transition: opacity 0.5s;
+    }
+    .loading-overlay.hidden {
+      opacity: 0;
+      pointer-events: none;
+    }
+    .spinner {
+      width: 50px;
+      height: 50px;
+      border: 4px solid rgba(255,255,255,0.3);
+      border-top-color: white;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin-bottom: 20px;
+    }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+  </style>
+</head>
+<body>
+
+<!-- Debug Section (collapsible) -->
+<div class="debug-section">
+  <div class="debug-header" onclick="toggleDebug()">
+    🔍 Debug Info (click to expand)
+    <span id="debug-arrow">▼</span>
+  </div>
+  <div class="debug-content" id="debug-content">
+
+    <div class="debug-item">
+      <strong>Metafield Test:</strong><br>
+      shop.metafields.custom.hmac_secret = <code>{{ shop.metafields.custom.hmac_secret }}</code><br>
+      Length: <strong style="color: #1976D2;">{{ shop.metafields.custom.hmac_secret | size }}</strong>
+      {% if shop.metafields.custom.hmac_secret %}
+        <span style="color: green;">✅ EXISTS</span>
+      {% else %}
+        <span style="color: red;">❌ NOT FOUND</span>
+      {% endif %}
+    </div>
+
+    {% if customer %}
+    <div class="debug-item">
+      <strong>Customer Data:</strong><br>
+      ID: <code>{{ customer.id }}</code><br>
+      Name: <code>{{ customer.first_name }} {{ customer.last_name }}</code><br>
+      Email: <code>{{ customer.email }}</code><br>
+      Orders: <code>{{ customer.orders_count }}</code>
+    </div>
+
+    <div class="debug-item">
+      <strong>Generated URL:</strong><br>
+      {%- liquid
+        assign hmac_secret = shop.metafields.custom.hmac_secret
+        assign customer_id = customer.id
+        assign shopify_token = customer_id | hmac_sha256: hmac_secret
+        assign debug_url = 'https://clara-shopify-git-test-fa-e7d6a9-tizeiraivan-gmailcoms-projects.vercel.app'
+        assign debug_url = debug_url | append: '?customer_id=' | append: customer_id
+        assign debug_url = debug_url | append: '&shopify_token=' | append: shopify_token
+        assign debug_url = debug_url | append: '&first_name=' | append: customer.first_name | url_encode
+        assign debug_url = debug_url | append: '&last_name=' | append: customer.last_name | url_encode
+        assign debug_url = debug_url | append: '&email=' | append: customer.email | url_encode
+        assign debug_url = debug_url | append: '&orders_count=' | append: customer.orders_count
+      -%}
+      <code style="word-break: break-all; display: block; margin-top: 5px;">{{ debug_url }}</code>
+    </div>
+    {% else %}
+    <div class="debug-item" style="background: #ffebee;">
+      <strong style="color: #d32f2f;">❌ NOT LOGGED IN</strong><br>
+      Inicia sesión como customer para ver personalización
+    </div>
+    {% endif %}
+
+  </div>
+</div>
+
+<!-- Clara Widget -->
+<div class="clara-wrapper">
+  <!-- Loading overlay -->
+  <div class="loading-overlay" id="loading">
+    <div class="spinner"></div>
+    <p style="font-size: 18px; font-weight: 500; margin: 0;">Cargando Clara...</p>
+    <p style="font-size: 14px; opacity: 0.8; margin-top: 8px;">Tu asesora virtual de skincare</p>
+  </div>
+
+  <!-- Clara iframe -->
+  {%- liquid
+    assign hmac_secret = shop.metafields.custom.hmac_secret
+
+    if customer
+      assign customer_id = customer.id
+      assign first_name = customer.first_name
+      assign last_name = customer.last_name
+      assign customer_email = customer.email
+      assign orders_count = customer.orders_count
+
+      assign shopify_token = customer_id | hmac_sha256: hmac_secret
+
+      assign widget_url = 'https://clara-shopify-git-test-fa-e7d6a9-tizeiraivan-gmailcoms-projects.vercel.app'
+      assign widget_url = widget_url | append: '?customer_id=' | append: customer_id
+      assign widget_url = widget_url | append: '&shopify_token=' | append: shopify_token
+
+      if first_name != blank
+        assign widget_url = widget_url | append: '&first_name=' | append: first_name | url_encode
+      endif
+
+      if last_name != blank
+        assign widget_url = widget_url | append: '&last_name=' | append: last_name | url_encode
+      endif
+
+      if customer_email != blank
+        assign widget_url = widget_url | append: '&email=' | append: customer_email | url_encode
+      endif
+
+      if orders_count
+        assign widget_url = widget_url | append: '&orders_count=' | append: orders_count
+      endif
+    else
+      assign widget_url = 'https://clara-shopify-git-test-fa-e7d6a9-tizeiraivan-gmailcoms-projects.vercel.app'
+    endif
+  -%}
+
+  <iframe
+    src="{{ widget_url }}"
+    id="clara-iframe"
+    class="clara-iframe"
+    title="Clara - Asesora Virtual de Skincare"
+    allow="microphone; camera; autoplay; encrypted-media; fullscreen; display-capture"
+    allowfullscreen
+    loading="eager">
+  </iframe>
+</div>
+
+<script>
+  // Toggle debug section
+  function toggleDebug() {
+    const content = document.getElementById('debug-content');
+    const arrow = document.getElementById('debug-arrow');
+    content.classList.toggle('show');
+    arrow.textContent = content.classList.contains('show') ? '▲' : '▼';
+  }
+
+  // Hide loading overlay when iframe loads
+  (function() {
+    const iframe = document.getElementById('clara-iframe');
+    const loading = document.getElementById('loading');
+
+    if (iframe && loading) {
+      iframe.addEventListener('load', function() {
+        setTimeout(function() {
+          loading.classList.add('hidden');
+        }, 500);
+      });
+
+      // Timeout fallback
+      setTimeout(function() {
+        loading.classList.add('hidden');
+      }, 5000);
+    }
+  })();
+
+  // Log iframe src for debugging
+  console.log('🖼️ Clara iframe src:', document.getElementById('clara-iframe').src);
+</script>
+
+</body>
+</html>

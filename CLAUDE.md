@@ -10,6 +10,103 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `npm run lint` - Run Next.js linter
 - `npm run type-check` - Run TypeScript type checking
 
+## Development Best Practices
+
+### Critical: Always Build Locally Before Push
+
+**MANDATORY before any git push:**
+```bash
+npm run build
+```
+
+**Why:** TypeScript errors that appear fine in your editor will fail in production build. Running local build reveals ALL errors at once instead of discovering them one-by-one in CI/CD (saves 20-30 minutes per development cycle).
+
+**Workflow:**
+1. Make code changes
+2. Run `npm run build` locally
+3. Fix ALL errors shown (usually 5-10 errors revealed at once)
+4. Verify build passes: `npm run build` again
+5. Only then: `git add`, `commit`, `push`
+
+**Common TypeScript Error Patterns:**
+
+1. **Incomplete Interfaces** - When adding new functionality, update ALL related interfaces:
+   ```typescript
+   // Example: Adding cleanup() method
+   interface Provider {
+     cleanup(): Promise<void>; // Add to interface if implementation uses it
+   }
+   ```
+
+2. **Hallucinated Types** - LLMs sometimes invent type names that don't exist:
+   ```typescript
+   // ❌ Wrong: BlobDataAvailableEvent (doesn't exist)
+   // ✅ Correct: BlobEvent (standard DOM type)
+   ```
+   Always verify types against MDN documentation for Web APIs.
+
+3. **Optional Chaining for Nullish Values** - Avoid `boolean | undefined`:
+   ```typescript
+   // ❌ Wrong: Can return undefined
+   hasData: !!array && array.length > 0
+
+   // ✅ Correct: Always returns boolean
+   hasData: (array?.length ?? 0) > 0
+   ```
+
+### Managing Legacy/Test Code
+
+**Files to exclude from production builds:**
+- `app/test-*` directories - Test pages for development only
+- `components/examples/` - Example components, not used in production
+- `*.legacy.ts` files - Old implementations kept for reference
+- Root-level `test-*.ts` files - Standalone test scripts
+
+**When encountering build errors in test/legacy files:**
+1. Check if file is actually used in production (`grep -r "filename" .`)
+2. If not used: Delete the file entirely (cleaner than maintaining broken code)
+3. If used: Fix the actual error
+
+**Prevention:** Consider adding to `.gitignore` or using Next.js `excludeFiles` in config.
+
+### Debugging Strategy
+
+**When build fails with TypeScript errors:**
+
+1. **Run local build first:** `npm run build` (fastest feedback loop)
+2. **Read the FULL error:** TypeScript errors are verbose but accurate
+3. **Check interfaces:** Most errors are incomplete/mismatched interfaces
+4. **Search for patterns:** If one file has error, similar files likely have same issue
+5. **Verify with docs:** Don't trust LLM-generated type names blindly
+
+**Faster than Vercel:** Local build takes 30-60s, Vercel takes 5-7 min. Finding 5 errors locally (1 min) vs. 5 Vercel deploys (35 min) saves massive time.
+
+### Code Quality Gates
+
+**Before committing new features:**
+- [ ] `npm run build` passes ✅
+- [ ] `npm run lint` passes ✅
+- [ ] Removed debug `console.log()` statements
+- [ ] Updated interfaces for new functionality
+- [ ] Deleted unused imports and files
+
+**Git Commit Standards:**
+- Use conventional commits: `feat:`, `fix:`, `chore:`, `docs:`
+- Explain WHY in commit body, not just WHAT
+- Reference issue numbers if applicable
+
+### TypeScript Configuration Notes
+
+This project uses **strict mode** TypeScript (`strict: true` in tsconfig.json):
+- All function parameters need explicit types
+- `null` and `undefined` must be handled explicitly
+- `any` type should be avoided (use `unknown` if type truly unknown)
+
+**Current Status:**
+- ✅ Production code (components, lib, app) - Fully typed, builds cleanly
+- ⚠️ Real-time conversation pipeline (`lib/realtime-conversation/`) - Implemented but not active in production
+- ✅ Shopify integration (FASE 1 + FASE 2) - Complete and deployed
+
 ## Architecture Overview
 
 This is a Next.js 14 app that creates a Clara help assistant widget with glassmorphism effects and fully functional HeyGen avatar integration using StreamingAvatar SDK v2.0.13.
@@ -25,6 +122,21 @@ This is a Next.js 14 app that creates a Clara help assistant widget with glassmo
   - `context.tsx` - Global state management with React Context
   - `useStreamingAvatarSession.ts` - Avatar session lifecycle management with memory leak prevention
   - `useVoiceChat.ts` - Voice chat functionality and controls
+- **Real-time Conversation System**: `lib/realtime-conversation/` - Modular conversation pipeline
+  - `interfaces.ts` - Type-safe interfaces for STT, LLM, and Avatar providers
+  - `state-machine.ts` - Conversation state management with barge-in support
+- **STT Providers**: `lib/realtime-conversation/providers/stt/` - Speech-to-Text providers
+  - `deepgram-nova3.ts` - **PRIMARY** - Deepgram Nova-3 with Spanish support (es-419)
+  - `deepgram-flux.ts` - LOW PRIORITY - Deepgram Flux v2 (English only, for future use)
+- **Personalization System**: `lib/personalization/` - Shopify-based personalization
+  - `types.ts` - Customer data interfaces
+  - `shopify-fetcher.ts` - 24-hour cache system for customer data
+  - `prompt-template.ts` - Template engine for personalized prompts
+- **Configuration**: `config/features.ts` - Feature flags and provider configuration
+  - Nova-3 presets (PRIMARY): standard, lowLatency, highReliability, conversational
+  - Flux presets (English only): simple, lowLatency, highReliability, complex
+  - Audio configuration for optimal streaming (16kHz linear16 PCM)
+  - Timing and retry settings
 
 ### API Routes
 
@@ -43,9 +155,16 @@ This is a Next.js 14 app that creates a Clara help assistant widget with glassmo
 - **Functional Avatar Integration**:
   - HeyGen StreamingAvatar SDK v2.0.13
   - Real-time video streaming with WebRTC
-  - Spanish language support
-  - Voice chat with Deepgram STT integration
+  - Spanish language support (es-419)
+  - Voice chat with Deepgram Nova-3 STT (Spanish support)
   - Knowledge base integration (Clara skincare)
+- **Real-time Conversation Pipeline**:
+  - **PRIMARY**: Deepgram Nova-3 STT with Spanish support (~500ms turn detection)
+  - **FALLBACK**: Deepgram Flux STT (English only, ~260ms latency, for future use)
+  - Native barge-in support (no custom VAD needed)
+  - Pluggable architecture (STT, LLM, Avatar providers)
+  - Configurable presets for different use cases
+  - Type-safe event system with state machine
 - **Cross-Browser Compatibility**:
   - Full Safari iOS and desktop support
   - Chrome desktop support
@@ -96,6 +215,15 @@ Required environment variables (see `.env.example`):
 **Additional Services:**
 - `OPENAI_API_KEY` - OpenAI API key for additional LLM processing
 
+**Deepgram STT (Required for real-time conversation):**
+- `DEEPGRAM_API_KEY` - Deepgram API key for STT (both Nova-3 and Flux)
+- `NEXT_PUBLIC_DEEPGRAM_API_KEY` - Same API key (required for client-side test pages)
+- `NEXT_PUBLIC_NOVA3_PRESET` - **PRIMARY** Nova-3 preset: 'standard' (default) | 'lowLatency' | 'highReliability' | 'conversational'
+- `NEXT_PUBLIC_FLUX_PRESET` - **ENGLISH ONLY** Flux preset: 'simple' (default) | 'lowLatency' | 'highReliability' | 'complex'
+- `NEXT_PUBLIC_ENABLE_STREAMING_STT` - Enable Deepgram streaming STT (true/false)
+- `NEXT_PUBLIC_LOG_NOVA3_EVENTS` - Log Nova-3 events for debugging (true/false)
+- `NEXT_PUBLIC_LOG_FLUX_EVENTS` - Log Flux turn events for debugging (true/false)
+
 **Shopify Integration (Optional):**
 - `SHOPIFY_HMAC_SECRET` - Secret for HMAC validation (generate with: `openssl rand -hex 32`)
 - `SHOPIFY_STORE_DOMAIN` - Your Shopify store domain (e.g., store.myshopify.com)
@@ -106,6 +234,47 @@ Required environment variables (see `.env.example`):
 1. **INACTIVE**: Initial state, shows setup interface
 2. **CONNECTING**: Loading state while initializing avatar
 3. **CONNECTED**: Active session with streaming video
+
+### STT Provider Implementation (Nova-3 vs Flux)
+
+**Current Status (2025-11-25):**
+
+**PRIMARY Provider: Deepgram Nova-3**
+- **Location**: `lib/realtime-conversation/providers/stt/deepgram-nova3.ts`
+- **Status**: Production ready with Spanish support
+- **Language**: Spanish (es-419) - Latin American Spanish
+- **Features**:
+  - UtteranceEnd events for turn detection (~500ms latency)
+  - SpeechStarted events for speech detection
+  - Interim results for real-time feedback
+  - Smart formatting for natural transcriptions
+  - Standard Deepgram events (no Flux-specific events)
+- **Configuration**: Via `NOVA3_PRESETS` in `config/features.ts`
+  - standard: 500ms endpointing (recommended)
+  - lowLatency: 300ms endpointing (faster)
+  - highReliability: 800ms endpointing (more certain)
+  - conversational: 500ms endpointing (balanced)
+- **Test Page**: `/test-nova3` - Fully functional with audio capture
+
+**FALLBACK Provider: Deepgram Flux (English Only)**
+- **Location**: `lib/realtime-conversation/providers/stt/deepgram-flux.ts`
+- **Status**: Low priority - For future English support only
+- **Language**: English only (flux-general-en) - NO Spanish support
+- **Limitations**:
+  - ⚠️ English only - no flux-general-es available
+  - ❌ Cannot be used for Clara (requires Spanish)
+- **Features**:
+  - Native turn detection with Flux TurnInfo events
+  - StartOfTurn, EndOfTurn, EagerEndOfTurn, TurnResumed events
+  - ~260ms turn detection latency (faster than Nova-3)
+  - Built-in barge-in detection
+- **Configuration**: Via `FLUX_PRESETS` in `config/features.ts`
+- **Test Page**: `/test-flux` - ⚠️ Incomplete (missing audio capture)
+
+**Decision Rationale:**
+- Nova-3 chosen as primary because Clara requires Spanish support
+- Flux maintained for potential future English features
+- Both implement same `STTProvider` interface for easy swapping
 
 ### Recent Fixes and Improvements
 
@@ -254,3 +423,28 @@ git push origin --delete test/feature-name
 - No customer data stored locally
 
 The implementation is based on HeyGen's official demo but adapted to maintain the glassmorphism aesthetic and Clara's branding, with additional fixes for cross-browser compatibility and memory management.
+
+# MCP Auto-Invoke Rules
+
+## Context7 Automatic Usage
+
+Automatically use Context7 when working with these libraries:
+
+**Core Dependencies:**
+- HeyGen StreamingAvatar SDK v2.0.13 → `use library /HeyGen/StreamingAvatarSDK`
+- Deepgram Nova-3/Flux API → `use library /deepgram/deepgram-node-sdk`
+- Next.js 14 App Router → `use library /vercel/next.js/v14.2.0`
+- Shopify Admin API → `use library /Shopify/shopify-api-js`
+
+**Auto-invoke triggers:**
+- Implementing avatar session management or WebRTC streaming
+- Adding/modifying STT providers or conversation pipeline
+- Creating new API routes or middleware
+- Integrating Shopify customer data features
+- Debugging SDK-specific errors or type mismatches
+- Upgrading any core library version
+
+**Manual invoke only:**
+- Project architecture questions (use codebase search instead)
+- Internal component refactoring (use `view` + `str_replace`)
+- Environment configuration changes

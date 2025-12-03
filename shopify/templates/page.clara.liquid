@@ -100,9 +100,60 @@
       <p class="clara-loading-subtext">Tu asesora virtual de skincare</p>
     </div>
 
-    <!-- Clara iframe -->
+    {% comment %}
+      FASE 2: Customer Data Extraction and HMAC Token Generation
+      Passes customer PII from Liquid (available on Basic plan) to widget via URL
+    {% endcomment %}
+
+    {%- liquid
+      # Get HMAC secret from store metafield
+      # This must match SHOPIFY_HMAC_SECRET in Vercel environment variables
+      # Using custom.hmac_secret (Shopify default namespace for store metafields)
+      assign hmac_secret = shop.metafields.custom.hmac_secret
+
+      # Check if customer is logged in
+      if customer
+        # Extract customer data (available in Liquid even on Basic plan)
+        assign customer_id = customer.id
+        assign first_name = customer.first_name
+        assign last_name = customer.last_name
+        assign customer_email = customer.email
+        assign orders_count = customer.orders_count
+
+        # Generate HMAC token for security validation
+        # This matches Node.js: crypto.createHmac('sha256', secret).update(customer_id).digest('hex')
+        assign shopify_token = customer_id | hmac_sha256: hmac_secret
+
+        # Build widget URL with customer data (PRODUCTION)
+        assign widget_url = 'https://clara-shopify.vercel.app'
+        assign widget_url = widget_url | append: '?customer_id=' | append: customer_id
+        assign widget_url = widget_url | append: '&shopify_token=' | append: shopify_token
+
+        # Add PII data (URL encoded to handle special characters like ñ, é)
+        if first_name != blank
+          assign widget_url = widget_url | append: '&first_name=' | append: first_name | url_encode
+        endif
+
+        if last_name != blank
+          assign widget_url = widget_url | append: '&last_name=' | append: last_name | url_encode
+        endif
+
+        if customer_email != blank
+          assign widget_url = widget_url | append: '&email=' | append: customer_email | url_encode
+        endif
+
+        if orders_count
+          assign widget_url = widget_url | append: '&orders_count=' | append: orders_count
+        endif
+      else
+        # Anonymous user - use generic Clara (PRODUCTION)
+        assign widget_url = 'https://clara-shopify.vercel.app'
+      endif
+    -%}
+
+    <!-- Clara iframe with dynamic URL -->
     <iframe
-      src="https://clara-shopify.vercel.app"
+      src="{{ widget_url }}"
       id="clara-iframe"
       title="Clara - Asesora Virtual de Skincare"
       allow="microphone; camera; autoplay; encrypted-media; fullscreen; display-capture"

@@ -32,12 +32,43 @@ export default function Home() {
 
     setIsLoading(false)
 
-    // Check for Shopify URL parameters
+    // FASE 2: Check for Shopify URL parameters including Liquid-provided PII
     const params = new URLSearchParams(window.location.search)
     const shopifyToken = params.get('shopify_token')
     const customerId = params.get('customer_id')
 
-    // If Shopify params exist, fetch customer data
+    // Parse Liquid-provided PII data from URL params
+    const firstName = params.get('first_name')
+    const lastName = params.get('last_name')
+    const email = params.get('email')
+    const ordersCountStr = params.get('orders_count')
+    const ordersCount = ordersCountStr ? parseInt(ordersCountStr, 10) : undefined
+
+    // Flag to track if we have Liquid data (PII from Shopify template)
+    const hasLiquidData = !!(firstName || lastName || email)
+
+    // Validate orders_count is a valid number
+    if (ordersCountStr && isNaN(ordersCount!)) {
+      console.warn('⚠️ Invalid orders_count format:', ordersCountStr)
+    }
+
+    console.log('📊 Data sources:', {
+      hasLiquidData,
+      hasShopifyParams: !!(shopifyToken && customerId),
+      firstName: firstName || '(none)',
+      ordersCount: ordersCount || 0,
+      source: hasLiquidData ? 'Liquid template' : 'API only'
+    })
+
+    // Build liquidData object from URL params
+    const liquidData = hasLiquidData ? {
+      firstName: firstName || undefined,
+      lastName: lastName || undefined,
+      email: email || undefined,
+      ordersCount: ordersCount
+    } : undefined
+
+    // If Shopify params exist, fetch customer data and merge with Liquid data
     if (shopifyToken && customerId) {
       setCustomerDataLoading(true)
 
@@ -60,22 +91,71 @@ export default function Home() {
         })
         .then((data) => {
           if (data.success && data.customer) {
-            setCustomerData(data.customer)
-            console.log('✅ Shopify customer data loaded:', data.customer.firstName, data.customer.lastName)
-            // Si hay customerData de Shopify, no necesitamos NameCapture
+            const apiData = data.customer
+
+            // MERGE STRATEGY: Prioritize Liquid data (PII) over API data
+            // This is critical for Basic plan where API has no PII access
+            const mergedData: ClaraCustomerData = {
+              // PII from Liquid (prioritized) - works on Basic plan
+              firstName: liquidData?.firstName || apiData.firstName || '',
+              lastName: liquidData?.lastName || apiData.lastName || '',
+              email: liquidData?.email || apiData.email || '',
+              ordersCount: liquidData?.ordersCount ?? apiData.ordersCount ?? 0,
+
+              // Non-PII from API (metafields, detailed orders) - always from API
+              skinType: apiData.skinType,
+              skinConcerns: apiData.skinConcerns,
+              recentOrders: apiData.recentOrders || []
+            }
+
+            setCustomerData(mergedData)
+
+            console.log('✅ Customer data merged successfully:', {
+              source: hasLiquidData ? 'Liquid + API' : 'API only',
+              firstName: mergedData.firstName,
+              lastName: mergedData.lastName,
+              skinType: mergedData.skinType,
+              ordersCount: mergedData.ordersCount,
+              hasOrders: mergedData.recentOrders.length > 0
+            })
+
+            // If we have customer data from Shopify, don't show NameCapture
             setShowNameCapture(false)
+
+            // Show warning if using Basic plan mode
+            if (data.warning) {
+              console.warn('⚠️', data.warning)
+            }
           }
         })
         .catch((error) => {
-          console.error('❌ Failed to load Shopify customer data:', error)
-          // Si falla Shopify, verificar localStorage
-          checkLocalUserName()
+          console.error('❌ Failed to load customer data from API:', error)
+
+          // FALLBACK: If API fails but we have Liquid data, use it
+          if (hasLiquidData && liquidData) {
+            const fallbackData: ClaraCustomerData = {
+              firstName: liquidData.firstName || '',
+              lastName: liquidData.lastName || '',
+              email: liquidData.email || '',
+              ordersCount: liquidData.ordersCount || 0,
+              recentOrders: []
+              // Note: No skinType or skinConcerns (API data not available)
+            }
+
+            setCustomerData(fallbackData)
+            console.log('⚠️ Using Liquid data only (API failed):', fallbackData)
+            setShowNameCapture(false)
+          } else {
+            // No data at all - fall back to localStorage
+            console.log('⚠️ No Liquid data and API failed. Checking localStorage...')
+            checkLocalUserName()
+          }
         })
         .finally(() => {
           setCustomerDataLoading(false)
         })
     } else {
-      // No hay params de Shopify, verificar localStorage
+      // No Shopify params - check localStorage for standalone mode
       checkLocalUserName()
     }
 

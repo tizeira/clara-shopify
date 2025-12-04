@@ -80,7 +80,14 @@ export class DeepgramNova3STT implements STTProvider {
         interim_results: this.config.interimResults,
         smart_format: this.config.smartFormat,
 
-        // Note: utterance_end_ms removed - it's an alias of endpointing (redundant)
+        // VAD events for SpeechStarted detection
+        vad_events: true,
+
+        // Additional formatting
+        punctuate: true,
+
+        // Filler words for natural speech ("um", "eh")
+        filler_words: true,
       };
 
       // Connect to Deepgram Nova-3 API

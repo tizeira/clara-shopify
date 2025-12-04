@@ -1,10 +1,12 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import HelpAssistantWidget from "@/components/help-assistant-widget"
+import ConversationWidget from "@/components/conversation-widget"
 import { AuthGate } from "@/components/AuthGate"
 import { NameCapture } from "@/components/NameCapture"
 import { ClaraCustomerData } from "@/lib/shopify-client"
+import { isCustomConversationEnabled } from "@/config/features"
 
 export default function Home() {
   const [isAuthenticated, setIsAuthenticated] = useState(false)
@@ -14,6 +16,15 @@ export default function Home() {
   const [userName, setUserName] = useState<string | null>(null)
   const [showNameCapture, setShowNameCapture] = useState(false)
   const [isInIframe, setIsInIframe] = useState(false)
+
+  // FASE 3: Custom pipeline fallback state
+  const [useFallback, setUseFallback] = useState(false)
+
+  // Handle fallback from custom pipeline to HeyGen built-in
+  const handleFallback = useCallback(() => {
+    console.warn('🔄 Switching to HeyGen built-in voice chat (fallback)')
+    setUseFallback(true)
+  }, [])
 
   // Check authentication status and load Shopify customer data on mount
   useEffect(() => {
@@ -217,11 +228,21 @@ export default function Home() {
         {showNameCapture ? (
           <NameCapture onNameSubmit={handleNameSubmit} />
         ) : isAuthenticated ? (
-          <HelpAssistantWidget
-            customerData={customerData}
-            customerDataLoading={customerDataLoading}
-            userName={userName}
-          />
+          // FASE 3: Switch between custom pipeline and HeyGen built-in
+          isCustomConversationEnabled() && !useFallback ? (
+            <ConversationWidget
+              customerData={customerData}
+              customerDataLoading={customerDataLoading}
+              userName={userName}
+              onFallback={handleFallback}
+            />
+          ) : (
+            <HelpAssistantWidget
+              customerData={customerData}
+              customerDataLoading={customerDataLoading}
+              userName={userName}
+            />
+          )
         ) : (
           <AuthGate onAuthenticated={handleAuthenticated} />
         )}

@@ -314,4 +314,59 @@ export class HeyGenAvatarProvider implements AvatarProvider {
   isInitialized(): boolean {
     return this.initialized;
   }
+
+  /**
+   * Attach to an existing StreamingAvatar session
+   * Useful when the avatar is managed by external hooks (e.g., useStreamingAvatarSession)
+   *
+   * @param avatar Existing StreamingAvatar instance
+   * @param stream Optional MediaStream if already available
+   */
+  attachToExistingSession(avatar: StreamingAvatar, stream?: MediaStream | null): void {
+    if (this.initialized) {
+      console.warn('⚠️ HeyGenAvatarProvider: Already initialized, detaching first');
+      this.avatar = null;
+      this.stream = null;
+      this.speaking = false;
+      this.initialized = false;
+    }
+
+    this.avatar = avatar;
+    if (stream) {
+      this.stream = stream;
+    }
+
+    // Setup event handlers for the existing avatar
+    this.setupEventHandlers();
+
+    this.initialized = true;
+
+    if (this.config.logEvents) {
+      console.log('✅ HeyGenAvatarProvider: Attached to existing session');
+    }
+  }
+
+  /**
+   * Detach from current session without stopping the avatar
+   * Useful when handing back control to another system
+   */
+  detach(): void {
+    if (!this.initialized) {
+      return;
+    }
+
+    // Clear local references but don't stop the avatar
+    this.avatar = null;
+    this.stream = null;
+    this.speaking = false;
+    this.initialized = false;
+
+    // Clear callbacks
+    this.speakStartCallback = undefined;
+    this.speakEndCallback = undefined;
+
+    if (this.config.logEvents) {
+      console.log('🔌 HeyGenAvatarProvider: Detached from session');
+    }
+  }
 }

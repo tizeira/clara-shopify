@@ -207,4 +207,29 @@ export class ClaudeStreamingLLM implements LLMProvider {
   isGenerating(): boolean {
     return this.isGeneratingFlag;
   }
+
+  /**
+   * Update system prompt dynamically
+   * Useful for personalization with Shopify customer data
+   * @param prompt New system prompt
+   * @param clearHistory Whether to clear conversation history (default: false)
+   */
+  updateSystemPrompt(prompt: string, clearHistory: boolean = false): void {
+    this.systemPrompt = prompt;
+
+    if (clearHistory) {
+      this.conversationHistory = [];
+    }
+
+    if (CONVERSATION_FEATURES.LOG_TRANSCRIPTS) {
+      console.log('✅ System prompt updated', clearHistory ? '(history cleared)' : '');
+    }
+  }
+
+  /**
+   * Get current system prompt
+   */
+  getSystemPrompt(): string {
+    return this.systemPrompt;
+  }
 }

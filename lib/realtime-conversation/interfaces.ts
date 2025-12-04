@@ -164,6 +164,19 @@ export interface LLMProvider {
    * Check if currently generating
    */
   isGenerating(): boolean;
+
+  /**
+   * Update system prompt dynamically
+   * Useful for personalization with Shopify customer data
+   * @param prompt New system prompt
+   * @param clearHistory Whether to clear conversation history (default: false)
+   */
+  updateSystemPrompt(prompt: string, clearHistory?: boolean): void;
+
+  /**
+   * Get current system prompt
+   */
+  getSystemPrompt(): string;
 }
 
 /**

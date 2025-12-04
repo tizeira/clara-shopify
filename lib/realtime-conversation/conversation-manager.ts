@@ -36,6 +36,7 @@
 
 import { STTProvider, LLMProvider, AvatarProvider, ConversationConfig } from './interfaces';
 import { AUDIO_CONFIG } from '@/config/features';
+import { ClaraCustomerData, generateKnowledgeBaseContext } from '@/lib/shopify-client';
 
 // Conversation states
 export enum ConversationState {
@@ -51,6 +52,10 @@ export interface ConversationManagerConfig {
   sttProvider: STTProvider;
   llmProvider: LLMProvider;
   avatarProvider: AvatarProvider;
+
+  // Personalization (Shopify integration)
+  personalizationData?: ClaraCustomerData | null;
+  userName?: string | null;
 
   // Feature flags
   enableBargeIn?: boolean;
@@ -99,6 +104,44 @@ export class ConversationManager {
       logTranscripts: false,
       ...config,
     };
+
+    // Apply personalization to LLM if data available
+    this.applyPersonalization();
+  }
+
+  /**
+   * Apply Shopify personalization to LLM system prompt
+   * Uses generateKnowledgeBaseContext() for consistent prompt building
+   */
+  private applyPersonalization(): void {
+    const { personalizationData, userName, llmProvider, logTranscripts } = this.config;
+
+    // Only update if we have personalization data or userName
+    if (!personalizationData && !userName) {
+      if (logTranscripts) {
+        console.log('ℹ️ ConversationManager: No personalization data, using default prompt');
+      }
+      return;
+    }
+
+    try {
+      // Generate personalized prompt using Shopify client utility
+      const personalizedPrompt = generateKnowledgeBaseContext(
+        personalizationData || null,
+        userName || undefined
+      );
+
+      // Update LLM system prompt (don't clear history on initial setup)
+      llmProvider.updateSystemPrompt(personalizedPrompt, false);
+
+      if (logTranscripts) {
+        const source = personalizationData ? 'Shopify' : 'localStorage';
+        console.log(`✅ ConversationManager: Personalization applied (source: ${source})`);
+      }
+    } catch (error) {
+      console.error('❌ ConversationManager: Failed to apply personalization', error);
+      // Continue with default prompt - don't throw
+    }
   }
 
   /**

@@ -10,6 +10,13 @@
  */
 export const CONVERSATION_FEATURES = {
   /**
+   * MAIN PIPELINE FLAG
+   * Set to 'true' to use custom pipeline (Deepgram Nova-3 → Claude → HeyGen REPEAT)
+   * Set to 'false' to use HeyGen built-in voice chat (default, safe)
+   */
+  ENABLE_CUSTOM_PIPELINE: process.env.NEXT_PUBLIC_ENABLE_CUSTOM_PIPELINE === 'true',
+
+  /**
    * FASE 1 Features
    */
 
@@ -230,12 +237,10 @@ export const FALLBACK_CONFIG = {
 
 /**
  * Helper to check if custom conversation system is enabled
+ * Returns true only if the main pipeline flag is explicitly enabled
  */
 export function isCustomConversationEnabled(): boolean {
-  return (
-    CONVERSATION_FEATURES.ENABLE_STREAMING_STT ||
-    CONVERSATION_FEATURES.ENABLE_STREAMING_LLM
-  );
+  return CONVERSATION_FEATURES.ENABLE_CUSTOM_PIPELINE === true;
 }
 
 /**
